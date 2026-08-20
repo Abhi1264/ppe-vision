@@ -1,5 +1,7 @@
 # PPE Vision
 
+[![CI](https://github.com/Abhi1264/ppe-vision/actions/workflows/ci.yml/badge.svg)](https://github.com/Abhi1264/ppe-vision/actions/workflows/ci.yml)
+
 Real-time **helmet and safety vest** monitoring for site PPE compliance. This repository is a production-quality Flutter scaffold: camera pipeline, detection overlay, PPE association, statistics, history, and settings are complete. The computer-vision model is intentionally not wired in yet.
 
 The app ships with a working **mock detection mode**, so the full UI can be demonstrated without a TFLite model.
@@ -139,3 +141,13 @@ flutter test
 ```
 
 Unit tests cover IoU, containment, PPE association, compliance, and statistics, including the three-person mock scene.
+
+## CI
+
+GitHub Actions runs the same gate on `main`, pull requests, and manual dispatch:
+
+1. `flutter pub get`
+2. `flutter analyze --fatal-infos`
+3. `flutter test --coverage`
+
+There is no store deployment. Builds are still produced locally with `flutter run`.

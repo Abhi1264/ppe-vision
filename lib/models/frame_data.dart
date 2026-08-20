@@ -12,7 +12,6 @@ class FramePlane {
   final int bytesPerRow;
 }
 
-/// Camera-agnostic frame payload consumed by detection providers.
 class FrameData {
   const FrameData({
     required this.width,

@@ -36,8 +36,6 @@ class BoundingBoxUtils {
     return inter / union;
   }
 
-  /// True when [child] is fully inside [parent], with a small tolerance
-  /// so slightly overflowing PPE boxes still count.
   static bool isInside(Detection child, Detection parent, {double tolerance = 0.02}) {
     return child.x1 >= parent.x1 - tolerance &&
         child.y1 >= parent.y1 - tolerance &&
@@ -53,7 +51,6 @@ class BoundingBoxUtils {
         c.y <= parent.y2;
   }
 
-  /// Relative Y of [child]'s center inside [parent], 0 at the top.
   static double relativeCenterY(Detection child, Detection parent) {
     final parentHeight = height(parent);
     if (parentHeight <= 0) return 0;

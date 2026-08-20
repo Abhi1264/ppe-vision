@@ -22,7 +22,6 @@ class ImageUtils {
     );
   }
 
-  /// Maps a point from letterboxed model space back to normalized image space.
   static ({double x, double y}) removeLetterbox({
     required double nx,
     required double ny,

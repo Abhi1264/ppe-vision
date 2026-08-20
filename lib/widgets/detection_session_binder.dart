@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/detection_provider.dart';
 
-/// Owns session start/stop so [DetectionScreen] can stay a pure view.
 class DetectionSessionBinder extends ConsumerStatefulWidget {
   const DetectionSessionBinder({super.key, required this.child});
 

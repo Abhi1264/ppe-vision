@@ -3,11 +3,7 @@ import 'dart:math' as math;
 import '../core/constants/detection_constants.dart';
 import '../models/detection.dart';
 
-/// Canonical mock scene used by the demo provider and tests.
-///
-/// Person 1: helmet + vest (compliant)
-/// Person 2: helmet only (missing vest)
-/// Person 3: vest only (missing helmet)
+// Person 1: helmet+vest. Person 2: helmet. Person 3: vest.
 class MockData {
   MockData._();
 
