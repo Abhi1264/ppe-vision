@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../core/constants/detection_constants.dart';
 import '../models/detection.dart';
 
@@ -10,7 +12,7 @@ class MockData {
   MockData._();
 
   static List<Detection> scene({double phase = 0}) {
-    final drift = 0.008 * _sinApprox(phase);
+    final drift = 0.008 * math.sin(phase);
 
     return [
       _person(
@@ -113,17 +115,6 @@ class MockData {
       x2: x2,
       y2: y2,
     );
-  }
-
-  static double _sinApprox(double x) {
-    // Cheap, allocation-free oscillation for the live overlay.
-    final twoPi = 6.283185307179586;
-    var t = x % twoPi;
-    if (t < 0) t += twoPi;
-    // Bhaskara approximation.
-    final n = 16 * t * (3.141592653589793 - t);
-    final d = 5 * 3.141592653589793 * 3.141592653589793 - 4 * t * (3.141592653589793 - t);
-    return n / d;
   }
 
   static Duration simulatedInferenceTime() {

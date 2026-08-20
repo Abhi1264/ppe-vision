@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app/theme.dart';
+import '../core/constants/app_constants.dart';
 
 enum AppButtonVariant { filled, outlined, ghost, accent }
 
@@ -28,24 +29,26 @@ class AppButton extends StatelessWidget {
       children: [
         if (icon != null) ...[
           Icon(icon, size: 20),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
         ],
         if (expand)
-          Flexible(
-            child: Text(label, overflow: TextOverflow.ellipsis),
-          )
+          Flexible(child: Text(label, overflow: TextOverflow.ellipsis))
         else
           Text(label),
       ],
     );
 
     final style = ButtonStyle(
-      minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
+      minimumSize: const WidgetStatePropertyAll(
+        Size(AppLayout.minTouchTarget, AppLayout.minTouchTarget),
+      ),
       padding: const WidgetStatePropertyAll(
-        EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: 14),
       ),
       shape: WidgetStatePropertyAll(
-        RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+        ),
       ),
       textStyle: const WidgetStatePropertyAll(
         TextStyle(
@@ -56,17 +59,24 @@ class AppButton extends StatelessWidget {
       ),
     );
 
-    final button = switch (variant) {
-      AppButtonVariant.filled => FilledButton(
+    final Color fill = switch (variant) {
+      AppButtonVariant.accent => AppColors.highVis,
+      _ => AppColors.ink,
+    };
+    final Color onFill = switch (variant) {
+      AppButtonVariant.accent => AppColors.ink,
+      _ => AppColors.paper,
+    };
+
+    final Widget button = switch (variant) {
+      AppButtonVariant.filled || AppButtonVariant.accent => FilledButton(
         onPressed: onPressed,
         style: style.copyWith(
           backgroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.disabled)) {
-              return AppColors.steel;
-            }
-            return AppColors.ink;
+            if (states.contains(WidgetState.disabled)) return AppColors.steel;
+            return fill;
           }),
-          foregroundColor: const WidgetStatePropertyAll(AppColors.paper),
+          foregroundColor: WidgetStatePropertyAll(onFill),
         ),
         child: child,
       ),
@@ -75,7 +85,7 @@ class AppButton extends StatelessWidget {
         style: style.copyWith(
           foregroundColor: const WidgetStatePropertyAll(AppColors.ink),
           side: const WidgetStatePropertyAll(
-            BorderSide(color: Color(0xFFC5CED6)),
+            BorderSide(color: AppColors.buttonOutline),
           ),
         ),
         child: child,
@@ -84,19 +94,6 @@ class AppButton extends StatelessWidget {
         onPressed: onPressed,
         style: style.copyWith(
           foregroundColor: const WidgetStatePropertyAll(AppColors.steel),
-        ),
-        child: child,
-      ),
-      AppButtonVariant.accent => FilledButton(
-        onPressed: onPressed,
-        style: style.copyWith(
-          backgroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.disabled)) {
-              return AppColors.steel;
-            }
-            return AppColors.highVis;
-          }),
-          foregroundColor: const WidgetStatePropertyAll(AppColors.ink),
         ),
         child: child,
       ),

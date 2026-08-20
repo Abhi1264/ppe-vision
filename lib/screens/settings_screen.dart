@@ -5,6 +5,7 @@ import '../app/theme.dart';
 import '../core/constants/app_constants.dart';
 import '../core/constants/detection_constants.dart';
 import '../providers/settings_provider.dart';
+import '../widgets/settings_controls.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -15,15 +16,20 @@ class SettingsScreen extends ConsumerWidget {
     final notifier = ref.read(settingsProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: const Text(AppStrings.settings)),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl,
+          AppSpacing.sm,
+          AppSpacing.xl,
+          AppSpacing.screen,
+        ),
         children: [
-          const _SectionTitle('Detection'),
-          _Card(
+          const SectionTitle(AppStrings.detectionSection),
+          SettingsCard(
             children: [
-              _SliderTile(
-                label: 'Confidence threshold',
+              SliderTile(
+                label: AppStrings.confidenceThreshold,
                 valueLabel: settings.confidenceThreshold.toStringAsFixed(2),
                 value: settings.confidenceThreshold,
                 min: DetectionConstants.minConfidenceThreshold,
@@ -32,9 +38,14 @@ class SettingsScreen extends ConsumerWidget {
               ),
               const Divider(height: 1),
               const Padding(
-                padding: EdgeInsets.fromLTRB(16, 14, 16, 8),
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  14,
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                ),
                 child: Text(
-                  'Detection provider',
+                  AppStrings.detectionProvider,
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color: AppColors.ink,
@@ -44,46 +55,49 @@ class SettingsScreen extends ConsumerWidget {
               RadioGroup<DetectionBackend>(
                 groupValue: settings.backend,
                 onChanged: (value) {
-                  if (value != null) notifier.setBackend(value);
+                  if (value == null) return;
+                  notifier.setBackend(value);
                 },
-                child: Column(
+                child: const Column(
                   children: [
                     RadioListTile<DetectionBackend>(
                       value: DetectionBackend.mock,
-                      title: const Text('Mock'),
-                      subtitle: const Text('Functional demo detections'),
+                      title: Text(AppStrings.providerMock),
+                      subtitle: Text(AppStrings.providerMockSubtitle),
                     ),
                     RadioListTile<DetectionBackend>(
                       value: DetectionBackend.model,
                       enabled: false,
-                      title: const Text('Model'),
-                      subtitle: const Text(
-                        'Not implemented — awaiting TFLite model',
-                      ),
+                      title: Text(AppStrings.providerModel),
+                      subtitle: Text(AppStrings.providerModelSubtitle),
                     ),
                   ],
                 ),
               ),
               SwitchListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                title: const Text('Enable detection overlay'),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                ),
+                title: const Text(AppStrings.enableOverlay),
                 value: settings.showOverlay,
                 onChanged: notifier.setShowOverlay,
               ),
               SwitchListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                title: const Text('Show confidence scores'),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                ),
+                title: const Text(AppStrings.showConfidence),
                 value: settings.showConfidence,
                 onChanged: notifier.setShowConfidence,
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          const _SectionTitle('Performance'),
-          _Card(
+          const SizedBox(height: AppSpacing.xl),
+          const SectionTitle(AppStrings.performanceSection),
+          SettingsCard(
             children: [
-              _SliderTile(
-                label: 'Target inference FPS',
+              SliderTile(
+                label: AppStrings.targetInferenceFps,
                 valueLabel: '${settings.targetInferenceFps}',
                 value: settings.targetInferenceFps.toDouble(),
                 min: DetectionConstants.minTargetFps.toDouble(),
@@ -95,25 +109,29 @@ class SettingsScreen extends ConsumerWidget {
                     notifier.setTargetInferenceFps(value.round()),
               ),
               SwitchListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                title: const Text('Show FPS'),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                ),
+                title: const Text(AppStrings.showFps),
                 value: settings.showFps,
                 onChanged: notifier.setShowFps,
               ),
               SwitchListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                title: const Text('Show inference time'),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                ),
+                title: const Text(AppStrings.showInferenceTime),
                 value: settings.showInferenceTime,
                 onChanged: notifier.setShowInferenceTime,
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          const _SectionTitle('About'),
-          const _Card(
+          const SizedBox(height: AppSpacing.xl),
+          const SectionTitle(AppStrings.aboutSection),
+          const SettingsCard(
             children: [
               Padding(
-                padding: EdgeInsets.fromLTRB(16, 16, 16, 16),
+                padding: EdgeInsets.all(AppSpacing.lg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -125,7 +143,7 @@ class SettingsScreen extends ConsumerWidget {
                         color: AppColors.ink,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    SizedBox(height: AppSpacing.xs),
                     Text(
                       AppConstants.appSubtitle,
                       style: TextStyle(
@@ -137,111 +155,12 @@ class SettingsScreen extends ConsumerWidget {
                     SizedBox(height: 10),
                     Text(
                       AppConstants.aboutBlurb,
-                      style: TextStyle(color: Color(0xFF5A646E)),
+                      style: TextStyle(color: AppColors.bodySecondary),
                     ),
                   ],
                 ),
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8, left: 4),
-      child: Text(
-        label.toUpperCase(),
-        style: const TextStyle(
-          color: AppColors.muted,
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1.4,
-        ),
-      ),
-    );
-  }
-}
-
-class _Card extends StatelessWidget {
-  const _Card({required this.children});
-
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.paper,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD5DCE3)),
-      ),
-      child: Column(children: children),
-    );
-  }
-}
-
-class _SliderTile extends StatelessWidget {
-  const _SliderTile({
-    required this.label,
-    required this.valueLabel,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.onChanged,
-    this.divisions,
-  });
-
-  final String label;
-  final String valueLabel;
-  final double value;
-  final double min;
-  final double max;
-  final int? divisions;
-  final ValueChanged<double> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.ink,
-                  ),
-                ),
-              ),
-              Text(
-                valueLabel,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: [FontFeature.tabularFigures()],
-                ),
-              ),
-            ],
-          ),
-          Slider(
-            value: value,
-            min: min,
-            max: max,
-            divisions: divisions,
-            onChanged: onChanged,
           ),
         ],
       ),

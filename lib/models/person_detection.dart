@@ -1,3 +1,4 @@
+import '../core/constants/app_constants.dart';
 import 'detection.dart';
 
 class PersonDetection {
@@ -15,20 +16,15 @@ class PersonDetection {
   bool get hasVest => vest != null;
   bool get isCompliant => hasHelmet && hasVest;
 
-  List<String> get missingItems {
-    return [
-      if (!hasHelmet) 'helmet',
-      if (!hasVest) 'vest',
-    ];
-  }
+  List<String> get missingItems => [
+    if (!hasHelmet) 'helmet',
+    if (!hasVest) 'vest',
+  ];
 
   String get missingSummary {
-    if (missingItems.isEmpty) {
-      return 'All required PPE detected';
-    }
-    if (missingItems.length == 1) {
-      return 'Missing ${missingItems.first}';
-    }
-    return 'Missing ${missingItems.join(' and ')}';
+    final missing = missingItems;
+    if (missing.isEmpty) return AppStrings.allPpeDetected;
+    if (missing.length == 1) return 'Missing ${missing.first}';
+    return 'Missing ${missing.join(' and ')}';
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/theme.dart';
+import '../core/constants/app_constants.dart';
 import '../providers/camera_provider.dart';
 import '../providers/detection_provider.dart';
 
@@ -49,46 +50,39 @@ class FallbackCameraBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const CustomPaint(
-      painter: _SitePreviewPainter(),
+      painter: SitePreviewPainter(),
       child: SizedBox.expand(),
     );
   }
 }
 
-class _SitePreviewPainter extends CustomPainter {
-  const _SitePreviewPainter();
+class SitePreviewPainter extends CustomPainter {
+  const SitePreviewPainter();
+
+  static const _gridStep = 32.0;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final bg = Paint()..color = AppColors.detectionBg;
-    canvas.drawRect(Offset.zero & size, bg);
+    canvas.drawRect(Offset.zero & size, Paint()..color = AppColors.detectionBg);
 
     final grid = Paint()
-      ..color = const Color(0xFF24303A)
+      ..color = AppColors.previewGrid
       ..strokeWidth = 1;
-    const step = 32.0;
-    for (double x = 0; x < size.width; x += step) {
+    for (double x = 0; x < size.width; x += _gridStep) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);
     }
-    for (double y = 0; y < size.height; y += step) {
+    for (double y = 0; y < size.height; y += _gridStep) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
     }
 
-    final horizon = Paint()
-      ..color = const Color(0xFF3A4A38)
-      ..style = PaintingStyle.fill;
     final ground = Path()
       ..moveTo(0, size.height * 0.62)
       ..lineTo(size.width, size.height * 0.58)
       ..lineTo(size.width, size.height)
       ..lineTo(0, size.height)
       ..close();
-    canvas.drawPath(ground, horizon);
+    canvas.drawPath(ground, Paint()..color = AppColors.previewGround);
 
-    final structure = Paint()
-      ..color = const Color(0xFF2C343C)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
     canvas.drawRect(
       Rect.fromLTWH(
         size.width * 0.12,
@@ -96,14 +90,17 @@ class _SitePreviewPainter extends CustomPainter {
         size.width * 0.76,
         size.height * 0.4,
       ),
-      structure,
+      Paint()
+        ..color = AppColors.previewStructure
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3,
     );
 
     final label = TextPainter(
       text: const TextSpan(
-        text: 'DEMO PREVIEW',
+        text: AppStrings.demoPreview,
         style: TextStyle(
-          color: Color(0x66E8EEF2),
+          color: AppColors.previewLabel,
           fontSize: 12,
           fontWeight: FontWeight.w700,
           letterSpacing: 2.4,

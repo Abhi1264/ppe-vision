@@ -38,21 +38,29 @@ class Detection {
       y2: y2.clamp(0.0, 1.0),
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is Detection &&
+            classType == other.classType &&
+            label == other.label &&
+            confidence == other.confidence &&
+            x1 == other.x1 &&
+            y1 == other.y1 &&
+            x2 == other.x2 &&
+            y2 == other.y2;
+  }
+
+  @override
+  int get hashCode => Object.hash(classType, label, confidence, x1, y1, x2, y2);
 }
 
 DetectionClass detectionClassFromLabel(String label) {
-  switch (label.trim().toLowerCase()) {
-    case 'person':
-      return DetectionClass.person;
-    case 'helmet':
-    case 'hardhat':
-    case 'hard_hat':
-      return DetectionClass.helmet;
-    case 'vest':
-    case 'safety vest':
-    case 'safety_vest':
-      return DetectionClass.vest;
-    default:
-      return DetectionClass.unknown;
-  }
+  return switch (label.trim().toLowerCase()) {
+    'person' => DetectionClass.person,
+    'helmet' || 'hardhat' || 'hard_hat' => DetectionClass.helmet,
+    'vest' || 'safety vest' || 'safety_vest' => DetectionClass.vest,
+    _ => DetectionClass.unknown,
+  };
 }

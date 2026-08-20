@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app/theme.dart';
+import '../core/constants/app_constants.dart';
 import '../models/compliance_statistics.dart';
 
 class StatisticsPanel extends StatelessWidget {
@@ -12,22 +13,22 @@ class StatisticsPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _Stat(label: 'People', value: '${statistics.peopleCount}'),
+        _Stat(label: AppStrings.people, value: '${statistics.peopleCount}'),
         _Stat(
-          label: 'Helmets',
+          label: AppStrings.helmets,
           value: '${statistics.helmetCount} / ${statistics.peopleCount}',
         ),
         _Stat(
-          label: 'Vests',
+          label: AppStrings.vests,
           value: '${statistics.vestCount} / ${statistics.peopleCount}',
         ),
         _Stat(
-          label: 'Compliant',
+          label: AppStrings.compliant,
           value: '${statistics.compliantCount}',
           color: AppColors.compliant,
         ),
         _Stat(
-          label: 'Violations',
+          label: AppStrings.violations,
           value: '${statistics.violationCount}',
           color: statistics.violationCount > 0
               ? AppColors.violation
@@ -57,17 +58,17 @@ class _Stat extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              color: color ?? const Color(0xFFF2F5F7),
+              color: color ?? AppColors.statValue,
               fontSize: 16,
               fontWeight: FontWeight.w700,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: AppSpacing.xxs),
           Text(
             label.toUpperCase(),
             style: const TextStyle(
-              color: Color(0xFF8B959E),
+              color: AppColors.statLabel,
               fontSize: 9,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.7,

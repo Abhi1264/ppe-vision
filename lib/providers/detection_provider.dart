@@ -5,25 +5,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/constants/app_constants.dart';
 import '../core/errors/app_exception.dart';
+import '../core/utils/fps_tracker.dart';
 import '../models/compliance_result.dart';
-import '../models/compliance_statistics.dart';
 import '../models/detection.dart';
 import '../models/detection_frame.dart';
 import '../models/frame_data.dart';
 import '../services/camera/camera_service.dart';
 import '../services/compliance/ppe_compliance_analyzer.dart';
+import '../services/detection/detection_engine_factory.dart';
 import '../services/detection/detection_provider.dart' as engine;
-import '../services/detection/mock_detection_provider.dart';
-import '../services/detection/model_detection_provider.dart';
 import 'camera_provider.dart';
 import 'history_provider.dart';
 import 'settings_provider.dart';
 
 final detectionEngineProvider = Provider<engine.DetectionProvider>((ref) {
   final backend = ref.watch(settingsProvider.select((s) => s.backend));
-  final provider = backend == DetectionBackend.mock
-      ? MockDetectionProvider()
-      : ModelDetectionProvider();
+  final provider = createDetectionEngine(backend);
   ref.onDispose(provider.dispose);
   return provider;
 });
@@ -35,10 +32,7 @@ class DetectionSessionState {
     this.cameraPhase = CameraPhase.idle,
     this.isDetecting = false,
     this.latestFrame,
-    this.compliance = const ComplianceResult(
-      people: [],
-      statistics: ComplianceStatistics.empty,
-    ),
+    this.compliance = ComplianceResult.empty,
     this.fps = 0,
     this.errorMessage,
     this.statusMessage,
@@ -55,9 +49,9 @@ class DetectionSessionState {
   final bool capturedFlash;
 
   List<Detection> get detections => latestFrame?.detections ?? const [];
-  Duration get inferenceTime =>
-      latestFrame?.inferenceTime ?? Duration.zero;
+  Duration get inferenceTime => latestFrame?.inferenceTime ?? Duration.zero;
   bool get usingFallbackPreview => cameraPhase == CameraPhase.fallback;
+  bool get canCapture => latestFrame != null;
 
   DetectionSessionState copyWith({
     CameraPhase? cameraPhase,
@@ -98,13 +92,14 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
   bool _alive = true;
   int _generation = 0;
   DateTime? _lastInferenceStartedAt;
-  DateTime? _lastInferenceCompletedAt;
   Timer? _fallbackTimer;
   Timer? _captureTimer;
-  double _fps = 0;
+  final FpsTracker _fps = FpsTracker();
 
   CameraService get _camera => ref.read(cameraServiceProvider);
   engine.DetectionProvider get _engine => ref.read(detectionEngineProvider);
+
+  bool _isCurrent(int generation) => _alive && generation == _generation;
 
   @override
   DetectionSessionState build() {
@@ -116,9 +111,7 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
       WidgetsBinding.instance.removeObserver(observer);
       unawaited(_teardown());
     });
-    return DetectionSessionState(
-      compliance: ComplianceResult.fromPeople(const []),
-    );
+    return const DetectionSessionState();
   }
 
   @override
@@ -145,69 +138,65 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
       cameraPhase: CameraPhase.initializing,
       isDetecting: false,
       clearError: true,
-      statusMessage: 'Starting camera…',
+      statusMessage: AppStrings.startingCamera,
     );
 
-    try {
-      await _engine.initialize();
-    } on AppException catch (error) {
-      if (generation != _generation) return;
+    final engineError = await _initializeEngine();
+    if (!_isCurrent(generation)) return;
+    if (engineError != null) {
       _started = false;
       state = state.copyWith(
         cameraPhase: CameraPhase.failed,
-        errorMessage: error.message,
-        isDetecting: false,
-      );
-      return;
-    } catch (error) {
-      if (generation != _generation) return;
-      _started = false;
-      state = state.copyWith(
-        cameraPhase: CameraPhase.failed,
-        errorMessage: error.toString(),
+        errorMessage: engineError,
         isDetecting: false,
       );
       return;
     }
 
-    if (generation != _generation) return;
-
     try {
       await _camera.initialize();
-      if (generation != _generation) return;
+      if (!_isCurrent(generation)) return;
       await _camera.startImageStream(_onFrame);
-      if (generation != _generation) return;
+      if (!_isCurrent(generation)) return;
       state = state.copyWith(
         cameraPhase: CameraPhase.ready,
         isDetecting: true,
-        statusMessage: 'Detection active',
+        statusMessage: AppStrings.detectionActive,
         clearError: true,
       );
     } on AppException catch (error) {
-      if (generation != _generation) return;
+      if (!_isCurrent(generation)) return;
       _startFallback(error.message);
+    } catch (_) {
+      if (!_isCurrent(generation)) return;
+      _startFallback(AppStrings.cameraUnavailable);
+    }
+  }
+
+  Future<String?> _initializeEngine() async {
+    try {
+      await _engine.initialize();
+      return null;
+    } on AppException catch (error) {
+      return error.message;
     } catch (error) {
-      if (generation != _generation) return;
-      _startFallback(
-        'Camera unavailable. Showing demo preview with mock detections.',
-      );
+      return error.toString();
     }
   }
 
   Future<void> stop() async {
     _generation += 1;
     _started = false;
+    _fps.reset();
     await _teardown();
-    state = DetectionSessionState(
-      compliance: ComplianceResult.fromPeople(const []),
-    );
+    state = const DetectionSessionState();
   }
 
   void capture() {
     ref.read(historyProvider.notifier).addCapture(state.compliance.statistics);
     state = state.copyWith(capturedFlash: true);
     _captureTimer?.cancel();
-    _captureTimer = Timer(const Duration(milliseconds: 1400), () {
+    _captureTimer = Timer(AppDurations.captureToast, () {
       if (_alive) {
         state = state.copyWith(capturedFlash: false);
       }
@@ -219,7 +208,7 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
       cameraPhase: CameraPhase.fallback,
       isDetecting: true,
       errorMessage: message,
-      statusMessage: 'Demo preview',
+      statusMessage: AppStrings.demoPreviewStatus,
     );
     _scheduleFallback();
   }
@@ -242,9 +231,7 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
     try {
       await _camera.resume(_onFrame);
     } catch (_) {
-      _startFallback(
-        'Camera unavailable. Showing demo preview with mock detections.',
-      );
+      _startFallback(AppStrings.cameraUnavailable);
     }
   }
 
@@ -276,7 +263,7 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
       ];
       final people = _analyzer.analyze(detections);
       final inferenceTime = DateTime.now().difference(started);
-      _updateFps();
+      _fps.record(DateTime.now());
       if (!_alive || !_started) return;
       state = state.copyWith(
         latestFrame: DetectionFrame(
@@ -285,47 +272,33 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
           inferenceTime: inferenceTime,
         ),
         compliance: ComplianceResult.fromPeople(people),
-        fps: _fps,
+        fps: _fps.value,
         isDetecting: true,
       );
     } on UnimplementedError catch (error) {
-      if (_alive) {
-        state = state.copyWith(
-          errorMessage: error.message ?? 'Model detection is not implemented.',
-          isDetecting: false,
-        );
-      }
+      _setError(error.message ?? AppStrings.modelUnimplemented, detecting: false);
     } on AppException catch (error) {
-      if (_alive) {
-        state = state.copyWith(errorMessage: error.message);
-      }
-    } catch (error) {
-      if (_alive) {
-        state = state.copyWith(
-          errorMessage: 'Detection failed for this frame.',
-        );
-      }
+      _setError(error.message);
+    } catch (_) {
+      _setError(AppStrings.inferenceFailed);
     } finally {
       _isProcessing = false;
     }
   }
 
-  void _updateFps() {
-    final now = DateTime.now();
-    if (_lastInferenceCompletedAt != null) {
-      final dt = now.difference(_lastInferenceCompletedAt!).inMilliseconds;
-      if (dt > 0) {
-        final instant = 1000 / dt;
-        _fps = _fps == 0 ? instant : (_fps * 0.75 + instant * 0.25);
-      }
-    }
-    _lastInferenceCompletedAt = now;
+  void _setError(String message, {bool? detecting}) {
+    if (!_alive) return;
+    state = state.copyWith(
+      errorMessage: message,
+      isDetecting: detecting ?? state.isDetecting,
+    );
   }
 
   Future<void> _teardown() async {
     _fallbackTimer?.cancel();
     _captureTimer?.cancel();
     _fallbackTimer = null;
+    _captureTimer = null;
     _isProcessing = false;
     try {
       await _camera.stopImageStream();

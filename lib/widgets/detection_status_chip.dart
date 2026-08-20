@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app/theme.dart';
+import '../core/constants/app_constants.dart';
 
 class DetectionStatusChip extends StatelessWidget {
   const DetectionStatusChip({
@@ -14,24 +15,23 @@ class DetectionStatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final resolved =
+        label ??
+        (active ? AppStrings.detectionActive : AppStrings.detectionIdle);
     final color = active ? AppColors.compliant : AppColors.muted;
     return Semantics(
       liveRegion: true,
-      label: label ?? (active ? 'Detection active' : 'Detection idle'),
+      label: resolved,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+          DecoratedBox(
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            child: const SizedBox(width: 8, height: 8),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Text(
-            label ?? (active ? 'Detection active' : 'Detection idle'),
+            resolved,
             style: TextStyle(
               color: color,
               fontSize: 12,

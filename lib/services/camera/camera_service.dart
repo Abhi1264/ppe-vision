@@ -53,7 +53,7 @@ class FlutterCameraService implements CameraService {
         orElse: () => cameras.first,
       );
 
-      await _controller?.dispose();
+      await _releaseController();
       final controller = CameraController(
         camera,
         ResolutionPreset.medium,
@@ -65,8 +65,7 @@ class FlutterCameraService implements CameraService {
     } on CameraUnavailableException {
       rethrow;
     } on CameraException catch (error) {
-      await _controller?.dispose();
-      _controller = null;
+      await _releaseController();
       if (_isPermissionError(error)) {
         throw const CameraPermissionDeniedException();
       }
@@ -75,8 +74,7 @@ class FlutterCameraService implements CameraService {
         error,
       );
     } catch (error) {
-      await _controller?.dispose();
-      _controller = null;
+      await _releaseController();
       throw CameraInitializationException(
         'The camera could not be initialized.',
         error,
@@ -102,15 +100,12 @@ class FlutterCameraService implements CameraService {
   Future<void> stopImageStream() async {
     _streaming = false;
     final controller = _controller;
-    if (controller != null && controller.value.isStreamingImages) {
-      await controller.stopImageStream();
-    }
+    if (controller == null || !controller.value.isStreamingImages) return;
+    await controller.stopImageStream();
   }
 
   @override
-  Future<void> pause() async {
-    await stopImageStream();
-  }
+  Future<void> pause() => stopImageStream();
 
   @override
   Future<void> resume(FrameCallback onFrame) async {
@@ -121,6 +116,10 @@ class FlutterCameraService implements CameraService {
   @override
   Future<void> dispose() async {
     _streaming = false;
+    await _releaseController();
+  }
+
+  Future<void> _releaseController() async {
     final controller = _controller;
     _controller = null;
     await controller?.dispose();
@@ -150,7 +149,6 @@ class FlutterCameraService implements CameraService {
     final code = error.code.toLowerCase();
     return code.contains('accessdenied') ||
         code.contains('permission') ||
-        code.contains('accessdeniedwithoutprompt') ||
         code.contains('accessrestricted');
   }
 }

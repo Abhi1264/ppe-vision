@@ -19,6 +19,25 @@ class AppColors {
   static const panel = Color(0xE61C2228);
   static const panelBorder = Color(0xFF3A434D);
   static const muted = Color(0xFF6B7580);
+  static const hairline = Color(0xFFD5DCE3);
+  static const body = Color(0xFF4A5560);
+  static const bodySecondary = Color(0xFF5A646E);
+  static const badgeFill = Color(0xFFEFE6C8);
+  static const badgeBorder = Color(0xFFD9C784);
+  static const badgeText = Color(0xFF5C4A12);
+  static const bannerFill = Color(0xCC2A1E16);
+  static const bannerText = Color(0xFFF0D9C4);
+  static const overlayLabel = Color(0xFF101418);
+  static const hudText = Color(0xFFE4E9EE);
+  static const fpsScrim = Color(0xCC101418);
+  static const fpsText = Color(0xFFE8EEF2);
+  static const statValue = Color(0xFFF2F5F7);
+  static const statLabel = Color(0xFF8B959E);
+  static const buttonOutline = Color(0xFFC5CED6);
+  static const previewGrid = Color(0xFF24303A);
+  static const previewGround = Color(0xFF3A4A38);
+  static const previewStructure = Color(0xFF2C343C);
+  static const previewLabel = Color(0x66E8EEF2);
 }
 
 class AppTheme {
@@ -37,6 +56,7 @@ class AppTheme {
       onSurface: AppColors.ink,
       tertiary: AppColors.steel,
       onTertiary: AppColors.paper,
+      outline: AppColors.hairline,
     );
 
     return ThemeData(
@@ -55,7 +75,7 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFFD5DCE3)),
+          side: const BorderSide(color: AppColors.hairline),
         ),
       ),
       sliderTheme: SliderThemeData(
@@ -63,7 +83,32 @@ class AppTheme {
         thumbColor: AppColors.highVisDark,
         overlayColor: AppColors.highVis.withValues(alpha: 0.16),
       ),
-      dividerColor: const Color(0xFFD5DCE3),
+      dividerColor: AppColors.hairline,
+      textTheme: const TextTheme(
+        headlineLarge: TextStyle(
+          color: AppColors.ink,
+          fontSize: 36,
+          fontWeight: FontWeight.w800,
+          height: 1.05,
+          letterSpacing: -0.8,
+        ),
+        titleMedium: TextStyle(
+          color: AppColors.steel,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+        bodyMedium: TextStyle(
+          color: AppColors.body,
+          fontSize: 15,
+          height: 1.45,
+        ),
+        labelSmall: TextStyle(
+          color: AppColors.highVisDark,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 2.2,
+        ),
+      ),
     );
   }
 
@@ -78,6 +123,7 @@ class AppTheme {
       onError: Colors.white,
       surface: AppColors.detectionBg,
       onSurface: AppColors.paper,
+      outline: AppColors.panelBorder,
     );
 
     return ThemeData(

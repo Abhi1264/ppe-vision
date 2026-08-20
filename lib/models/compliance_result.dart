@@ -1,3 +1,4 @@
+import '../core/constants/app_constants.dart';
 import 'compliance_statistics.dart';
 import 'person_detection.dart';
 
@@ -6,6 +7,11 @@ class ComplianceResult {
     required this.people,
     required this.statistics,
   });
+
+  static const empty = ComplianceResult(
+    people: [],
+    statistics: ComplianceStatistics.empty,
+  );
 
   factory ComplianceResult.fromPeople(List<PersonDetection> people) {
     return ComplianceResult(
@@ -18,35 +24,25 @@ class ComplianceResult {
   final ComplianceStatistics statistics;
 
   bool get hasPeople => statistics.peopleCount > 0;
-  bool get isFullyCompliant =>
-      hasPeople && statistics.violationCount == 0;
+  bool get isFullyCompliant => hasPeople && statistics.violationCount == 0;
 
   String get headline {
-    if (!hasPeople) {
-      return 'NO PEOPLE DETECTED';
-    }
-    if (isFullyCompliant) {
-      return 'PPE COMPLIANT';
-    }
-    if (statistics.peopleCount == 1) {
-      return 'PPE VIOLATION';
-    }
-    return '${statistics.violationCount} PPE VIOLATION${statistics.violationCount == 1 ? '' : 'S'}';
+    if (!hasPeople) return AppStrings.noPeopleHeadline;
+    if (isFullyCompliant) return AppStrings.compliantHeadline;
+    if (statistics.peopleCount == 1) return AppStrings.violationHeadline;
+    final count = statistics.violationCount;
+    return '$count PPE VIOLATION${count == 1 ? '' : 'S'}';
   }
 
   String get detail {
-    if (!hasPeople) {
-      return 'Waiting for a person in frame';
-    }
+    if (!hasPeople) return AppStrings.waitingForPerson;
     if (isFullyCompliant) {
-      if (statistics.peopleCount == 1) {
-        return 'All required PPE detected';
-      }
-      return 'All detected people are wearing required PPE';
+      return statistics.peopleCount == 1
+          ? AppStrings.allPpeDetected
+          : AppStrings.allPeopleCompliant;
     }
-    if (statistics.peopleCount == 1) {
-      return people.first.missingSummary;
-    }
-    return '${statistics.violationCount} PPE violation${statistics.violationCount == 1 ? '' : 's'} detected';
+    if (statistics.peopleCount == 1) return people.first.missingSummary;
+    final count = statistics.violationCount;
+    return '$count PPE violation${count == 1 ? '' : 's'} detected';
   }
 }
