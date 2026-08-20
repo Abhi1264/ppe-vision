@@ -1,0 +1,24 @@
+name: ppe_vision
+description: Helmet and safety vest detection demo for real-time PPE compliance monitoring.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  camera: ^0.11.2
+  cupertino_icons: ^1.0.8
+  flutter_riverpod: ^2.6.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/models/
