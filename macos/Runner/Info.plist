@@ -26,6 +26,8 @@
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NSCameraUsageDescription</key>
 	<string>PPE Vision uses the camera to detect helmets and safety vests in real time.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>PPE Vision does not record audio; this permission is required by the camera plugin.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>$(PRODUCT_COPYRIGHT)</string>
 	<key>NSMainNibFile</key>

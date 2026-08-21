@@ -1,4 +1,6 @@
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../core/errors/app_exception.dart';
@@ -20,6 +22,26 @@ abstract class CameraService {
   Widget? buildPreview();
 }
 
+/// Prefers a phone back camera, then an external webcam, then a front camera.
+/// Original order is preserved among cameras with the same lens direction.
+@visibleForTesting
+List<CameraDescription> rankDetectedCameras(List<CameraDescription> cameras) {
+  const priority = {
+    CameraLensDirection.back: 0,
+    CameraLensDirection.external: 1,
+    CameraLensDirection.front: 2,
+  };
+
+  final ranked = cameras.indexed.toList()
+    ..sort((a, b) {
+      final byLens = (priority[a.$2.lensDirection] ?? 99).compareTo(
+        priority[b.$2.lensDirection] ?? 99,
+      );
+      return byLens != 0 ? byLens : a.$1.compareTo(b.$1);
+    });
+  return [for (final entry in ranked) entry.$2];
+}
+
 class FlutterCameraService implements CameraService {
   CameraController? _controller;
   bool _streaming = false;
@@ -35,7 +57,13 @@ class FlutterCameraService implements CameraService {
   Size? get previewSize {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return null;
-    return controller.value.previewSize;
+    final size = controller.value.previewSize;
+    if (size == null) return null;
+    final orientation = controller.description.sensorOrientation;
+    if (orientation == 90 || orientation == 270) {
+      return Size(size.height, size.width);
+    }
+    return size;
   }
 
   @override
@@ -47,44 +75,68 @@ class FlutterCameraService implements CameraService {
 
   @override
   Future<void> initialize() async {
-    try {
-      final cameras = await availableCameras();
-      if (cameras.isEmpty) {
-        throw const CameraUnavailableException();
+    final cameras = await _discoverCameras();
+    if (cameras.isEmpty) {
+      throw const CameraUnavailableException();
+    }
+
+    Object? lastError;
+    for (final camera in rankDetectedCameras(cameras)) {
+      try {
+        await _openCamera(camera);
+        return;
+      } on CameraException catch (error) {
+        lastError = error;
+        await _releaseController();
+        if (_isPermissionError(error)) {
+          throw const CameraPermissionDeniedException();
+        }
+      } catch (error) {
+        lastError = error;
+        await _releaseController();
       }
+    }
 
-      final camera = cameras.firstWhere(
-        (c) => c.lensDirection == CameraLensDirection.back,
-        orElse: () => cameras.first,
-      );
+    throw CameraInitializationException(
+      'No detected camera could be initialized.',
+      lastError,
+    );
+  }
 
-      await _releaseController();
-      final controller = CameraController(
-        camera,
-        ResolutionPreset.medium,
-        enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.yuv420,
-      );
-      _controller = controller;
-      await controller.initialize();
-    } on CameraUnavailableException {
-      rethrow;
+  Future<List<CameraDescription>> _discoverCameras() async {
+    try {
+      return await availableCameras();
     } on CameraException catch (error) {
-      await _releaseController();
       if (_isPermissionError(error)) {
         throw const CameraPermissionDeniedException();
       }
-      throw CameraInitializationException(
-        'The camera could not be initialized.',
-        error,
-      );
-    } catch (error) {
-      await _releaseController();
-      throw CameraInitializationException(
-        'The camera could not be initialized.',
-        error,
-      );
+      throw const CameraUnavailableException();
+    } on MissingPluginException {
+      throw const CameraUnavailableException();
+    } on UnimplementedError {
+      throw const CameraUnavailableException();
     }
+  }
+
+  Future<void> _openCamera(CameraDescription camera) async {
+    await _releaseController();
+    final controller = CameraController(
+      camera,
+      ResolutionPreset.medium,
+      enableAudio: false,
+      imageFormatGroup: _preferredImageFormat(),
+    );
+    _controller = controller;
+    await controller.initialize();
+  }
+
+  ImageFormatGroup? _preferredImageFormat() {
+    if (kIsWeb) return null;
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.android => ImageFormatGroup.yuv420,
+      TargetPlatform.iOS || TargetPlatform.macOS => ImageFormatGroup.bgra8888,
+      _ => null,
+    };
   }
 
   @override
@@ -96,10 +148,18 @@ class FlutterCameraService implements CameraService {
     if (!controller.supportsImageStreaming()) return;
     if (controller.value.isStreamingImages) return;
     _streaming = true;
-    await controller.startImageStream((image) {
-      if (!_streaming) return;
-      onFrame(_toFrameData(image, controller));
-    });
+    try {
+      await controller.startImageStream((image) {
+        if (!_streaming) return;
+        onFrame(_toFrameData(image, controller));
+      });
+    } catch (error) {
+      _streaming = false;
+      throw CameraInitializationException(
+        'The camera frame stream could not be started.',
+        error,
+      );
+    }
   }
 
   @override
@@ -154,8 +214,12 @@ class FlutterCameraService implements CameraService {
 
   bool _isPermissionError(CameraException error) {
     final code = error.code.toLowerCase();
+    final description = (error.description ?? '').toLowerCase();
     return code.contains('accessdenied') ||
         code.contains('permission') ||
-        code.contains('accessrestricted');
+        code.contains('accessrestricted') ||
+        description.contains('permission') ||
+        description.contains('not authorized') ||
+        description.contains('denied');
   }
 }

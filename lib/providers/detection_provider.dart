@@ -156,10 +156,17 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
     try {
       await _camera.initialize();
       if (!_isCurrent(generation)) return;
+      var streaming = false;
       if (_camera.supportsImageStream) {
-        await _camera.startImageStream(_onFrame);
-      } else {
-        // Web (and some desktops) can show a live preview but cannot stream
+        try {
+          await _camera.startImageStream(_onFrame);
+          streaming = true;
+        } catch (_) {
+          streaming = false;
+        }
+      }
+      if (!streaming) {
+        // Web and some desktops can show a live preview but cannot stream
         // frames. Keep the camera and drive mock detections synthetically.
         _scheduleFallback();
       }
@@ -199,7 +206,9 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
   }
 
   void capture() {
-    ref.read(historyProvider.notifier).addCapture(state.compliance.statistics);
+    unawaited(
+      ref.read(historyProvider.notifier).addCapture(state.compliance.statistics),
+    );
     state = state.copyWith(capturedFlash: true);
     _captureTimer?.cancel();
     _captureTimer = Timer(AppDurations.captureToast, () {

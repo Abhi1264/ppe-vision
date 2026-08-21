@@ -10,8 +10,10 @@ dependencies:
   flutter:
     sdk: flutter
   camera: ^0.12.0+2
+  camera_desktop: ^1.2.1
   cupertino_icons: ^1.0.8
   flutter_riverpod: ^3.4.2
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:

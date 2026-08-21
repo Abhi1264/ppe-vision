@@ -12,7 +12,15 @@ class HistoryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final entries = ref.watch(historyProvider);
+    final history = ref.watch(historyProvider);
+    if (!history.isLoaded) {
+      return Scaffold(
+        appBar: AppBar(title: const Text(AppStrings.detectionHistory)),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final entries = history.entries;
     if (entries.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text(AppStrings.detectionHistory)),

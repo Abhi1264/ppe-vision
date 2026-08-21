@@ -25,8 +25,8 @@ class CameraView extends ConsumerWidget {
         final child = previewSize == null
             ? preview
             : SizedBox(
-                width: previewSize.height,
-                height: previewSize.width,
+                width: previewSize.width,
+                height: previewSize.height,
                 child: preview,
               );
 

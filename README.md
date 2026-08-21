@@ -69,11 +69,11 @@ flutter devices
 
 | Platform | Run | Camera |
 | --- | --- | --- |
-| Android / iOS | `flutter run` | Live preview and frame stream. Falls back to the demo preview if init fails (simulators, missing permission). |
+| Android / iOS | `flutter run` | Live preview and frame stream from the first working camera (back, then external, then front). Falls back to the demo preview if init fails (simulators, missing permission). |
 | Web | `flutter run -d chrome` | Live preview when camera permission is granted. Frame streaming is not supported on web, so mock detections overlay the live feed. Serve over HTTPS or `localhost`. |
-| macOS | `flutter run -d macos` | Demo preview and mock detections. The official `camera` plugin has no macOS implementation. |
-| Windows | `flutter run -d windows` | Demo preview and mock detections. No endorsed camera plugin; image streaming is unavailable. |
-| Linux | `flutter run -d linux` | Demo preview and mock detections. No camera plugin implementation. |
+| macOS | `flutter run -d macos` | Live preview and frame stream from any detected webcam (built-in or USB). Grant camera permission when prompted. |
+| Windows | `flutter run -d windows` | Live preview from any detected webcam. Frame streaming is not supported, so mock detections overlay the live feed. |
+| Linux | `flutter run -d linux` | Live preview and frame stream from any detected V4L2 webcam. Requires GStreamer (`libgstreamer1.0-dev`, `libgstreamer-plugins-base1.0-dev`, `gstreamer1.0-plugins-good` on Debian/Ubuntu). |
 
 ```bash
 flutter run                 # default device (usually a connected phone)
@@ -112,7 +112,7 @@ Stored in memory for this phase (no database):
 
 ## Capture and history
 
-**Capture** on the detection screen snapshots the current counts into an in-memory history list. Image persistence is intentionally omitted.
+**Capture** on the detection screen snapshots the current counts into detection history. Captures are stored on the device and restored the next time the app opens. Image persistence is intentionally omitted.
 
 ## Future model integration
 
