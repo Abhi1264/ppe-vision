@@ -28,9 +28,6 @@ class MockDetectionProvider implements DetectionProvider {
     if (!_ready) {
       throw const InferenceException('Mock detection provider is not initialized.');
     }
-    if (frame.width <= 0 || frame.height <= 0) {
-      throw const InvalidFrameException();
-    }
 
     final jitterMs = _random.nextInt(
       DetectionConstants.mockInferenceJitter.inMilliseconds + 1,
@@ -39,7 +36,7 @@ class MockDetectionProvider implements DetectionProvider {
       DetectionConstants.mockInferenceMin + Duration(milliseconds: jitterMs),
     );
 
-    final elapsed = DateTime.now().difference(_startedAt ?? DateTime.now());
+    final elapsed = DateTime.now().difference(_startedAt!);
     final phase = elapsed.inMilliseconds / 700;
     return MockData.scene(phase: phase);
   }

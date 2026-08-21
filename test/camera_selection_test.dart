@@ -24,9 +24,4 @@ void main() {
       frontB,
     ]);
   });
-
-  test('uses the only detected webcam as-is', () {
-    final webcam = _cam('FaceTime HD', CameraLensDirection.front);
-    expect(rankDetectedCameras([webcam]), [webcam]);
-  });
 }

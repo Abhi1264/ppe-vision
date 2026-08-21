@@ -166,8 +166,6 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
         }
       }
       if (!streaming) {
-        // Web and some desktops can show a live preview but cannot stream
-        // frames. Keep the camera and drive mock detections synthetically.
         _scheduleFallback();
       }
       if (!_isCurrent(generation)) return;

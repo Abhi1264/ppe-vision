@@ -22,24 +22,16 @@ abstract class CameraService {
   Widget? buildPreview();
 }
 
-/// Prefers a phone back camera, then an external webcam, then a front camera.
-/// Original order is preserved among cameras with the same lens direction.
 @visibleForTesting
 List<CameraDescription> rankDetectedCameras(List<CameraDescription> cameras) {
-  const priority = {
-    CameraLensDirection.back: 0,
-    CameraLensDirection.external: 1,
-    CameraLensDirection.front: 2,
-  };
-
-  final ranked = cameras.indexed.toList()
-    ..sort((a, b) {
-      final byLens = (priority[a.$2.lensDirection] ?? 99).compareTo(
-        priority[b.$2.lensDirection] ?? 99,
-      );
-      return byLens != 0 ? byLens : a.$1.compareTo(b.$1);
-    });
-  return [for (final entry in ranked) entry.$2];
+  const order = [
+    CameraLensDirection.back,
+    CameraLensDirection.external,
+    CameraLensDirection.front,
+  ];
+  return [
+    for (final lens in order) ...cameras.where((c) => c.lensDirection == lens),
+  ];
 }
 
 class FlutterCameraService implements CameraService {
@@ -113,8 +105,6 @@ class FlutterCameraService implements CameraService {
       throw const CameraUnavailableException();
     } on MissingPluginException {
       throw const CameraUnavailableException();
-    } on UnimplementedError {
-      throw const CameraUnavailableException();
     }
   }
 
@@ -148,18 +138,10 @@ class FlutterCameraService implements CameraService {
     if (!controller.supportsImageStreaming()) return;
     if (controller.value.isStreamingImages) return;
     _streaming = true;
-    try {
-      await controller.startImageStream((image) {
-        if (!_streaming) return;
-        onFrame(_toFrameData(image, controller));
-      });
-    } catch (error) {
-      _streaming = false;
-      throw CameraInitializationException(
-        'The camera frame stream could not be started.',
-        error,
-      );
-    }
+    await controller.startImageStream((image) {
+      if (!_streaming) return;
+      onFrame(_toFrameData(image, controller));
+    });
   }
 
   @override
@@ -214,12 +196,8 @@ class FlutterCameraService implements CameraService {
 
   bool _isPermissionError(CameraException error) {
     final code = error.code.toLowerCase();
-    final description = (error.description ?? '').toLowerCase();
     return code.contains('accessdenied') ||
         code.contains('permission') ||
-        code.contains('accessrestricted') ||
-        description.contains('permission') ||
-        description.contains('not authorized') ||
-        description.contains('denied');
+        code.contains('accessrestricted');
   }
 }

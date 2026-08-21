@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import '../core/constants/detection_constants.dart';
 import '../models/detection.dart';
 
 // Person 1: helmet+vest. Person 2: helmet. Person 3: vest.
@@ -111,9 +110,5 @@ class MockData {
       x2: x2,
       y2: y2,
     );
-  }
-
-  static Duration simulatedInferenceTime() {
-    return DetectionConstants.mockInferenceMin;
   }
 }

@@ -15,7 +15,6 @@ class Detection {
   final String label;
   final double confidence;
 
-  /// Normalized 0–1.
   final double x1;
   final double y1;
   final double x2;

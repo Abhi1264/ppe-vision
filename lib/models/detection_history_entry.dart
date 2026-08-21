@@ -17,16 +17,12 @@ class DetectionHistoryEntry {
   };
 
   factory DetectionHistoryEntry.fromJson(Map<String, dynamic> json) {
-    final timestampRaw = json['timestamp'];
-    final timestamp = timestampRaw is String
-        ? DateTime.tryParse(timestampRaw) ??
-              DateTime.fromMillisecondsSinceEpoch(0)
-        : DateTime.fromMillisecondsSinceEpoch(0);
-    final statsRaw = json['statistics'];
-    final statistics = statsRaw is Map
-        ? ComplianceStatistics.fromJson(Map<String, dynamic>.from(statsRaw))
-        : ComplianceStatistics.empty;
-    return DetectionHistoryEntry(timestamp: timestamp, statistics: statistics);
+    return DetectionHistoryEntry(
+      timestamp: DateTime.parse(json['timestamp'] as String),
+      statistics: ComplianceStatistics.fromJson(
+        Map<String, dynamic>.from(json['statistics'] as Map),
+      ),
+    );
   }
 
   static String encodeList(List<DetectionHistoryEntry> entries) {
@@ -40,8 +36,9 @@ class DetectionHistoryEntry {
       if (decoded is! List) return const [];
       return [
         for (final item in decoded)
-          if (item is Map)
-            DetectionHistoryEntry.fromJson(Map<String, dynamic>.from(item)),
+          DetectionHistoryEntry.fromJson(
+            Map<String, dynamic>.from(item as Map),
+          ),
       ];
     } catch (_) {
       return const [];

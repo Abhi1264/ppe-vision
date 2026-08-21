@@ -68,16 +68,7 @@ class HistoryNotifier extends Notifier<HistoryState> {
   }
 
   Future<void> _persist() async {
-    final snapshot = state.entries;
-    _saveFuture = _write(snapshot);
+    _saveFuture = ref.read(historyStoreProvider).save(state.entries);
     await _saveFuture;
-  }
-
-  Future<void> _write(List<DetectionHistoryEntry> snapshot) async {
-    try {
-      await ref.read(historyStoreProvider).save(snapshot);
-    } catch (_) {
-      // Keep the in-memory capture even if disk write fails.
-    }
   }
 }

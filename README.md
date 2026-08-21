@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Abhi1264/ppe-vision/actions/workflows/ci.yml/badge.svg)](https://github.com/Abhi1264/ppe-vision/actions/workflows/ci.yml)
 
-Real-time **helmet and safety vest** monitoring for site PPE compliance. This repository is a production-quality Flutter scaffold: camera pipeline, detection overlay, PPE association, statistics, history, and settings are complete. The computer-vision model is intentionally not wired in yet.
+Real-time **helmet and safety vest** monitoring for site PPE compliance. Camera pipeline, detection overlay, PPE association, statistics, history, and settings are in place. The computer-vision model is not wired in yet.
 
 The app ships with a working **mock detection mode**, so the full UI can be demonstrated without a TFLite model.
 
@@ -98,7 +98,7 @@ Settings → **Detection provider → Mock** (default).
 2. Helmet only → vest violation
 3. Vest only → helmet violation
 
-Inference time is simulated (~90–140 ms). Camera frames are throttled to the configured target FPS (5–15). Concurrent inference is blocked with an `isProcessing` guard.
+Inference time is simulated (~90–140 ms). Camera frames are throttled to the configured target FPS (5–15).
 
 ## Settings
 

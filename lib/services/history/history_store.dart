@@ -30,18 +30,13 @@ class SharedPreferencesHistoryStore implements HistoryStore {
 
   SharedPreferences? _prefs;
 
-  Future<SharedPreferences?> _instance() async {
-    try {
-      return _prefs ??= await SharedPreferences.getInstance();
-    } catch (_) {
-      return null;
-    }
+  Future<SharedPreferences> _instance() async {
+    return _prefs ??= await SharedPreferences.getInstance();
   }
 
   @override
   Future<List<DetectionHistoryEntry>> load() async {
     final prefs = await _instance();
-    if (prefs == null) return const [];
     final raw = prefs.getString(storageKey);
     if (raw == null || raw.isEmpty) return const [];
     return DetectionHistoryEntry.decodeList(raw);
@@ -50,7 +45,6 @@ class SharedPreferencesHistoryStore implements HistoryStore {
   @override
   Future<void> save(List<DetectionHistoryEntry> entries) async {
     final prefs = await _instance();
-    if (prefs == null) return;
     await prefs.setString(
       storageKey,
       DetectionHistoryEntry.encodeList(entries),

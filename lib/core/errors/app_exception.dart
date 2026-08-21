@@ -55,9 +55,3 @@ class InvalidFrameException extends AppException {
     Object? cause,
   ]) : super(cause: cause);
 }
-
-class UnsupportedDeviceException extends AppException {
-  const UnsupportedDeviceException([
-    super.message = 'This device does not support the required camera pipeline.',
-  ]);
-}

@@ -56,22 +56,4 @@ class BoundingBoxUtils {
     if (parentHeight <= 0) return 0;
     return (child.centerY - parent.y1) / parentHeight;
   }
-
-  static ({double x, double y, double w, double h}) toPixels({
-    required Detection box,
-    required double widthPx,
-    required double heightPx,
-  }) {
-    return (
-      x: box.x1 * widthPx,
-      y: box.y1 * heightPx,
-      w: width(box) * widthPx,
-      h: height(box) * heightPx,
-    );
-  }
 }
-
-double calculateIoU(Detection a, Detection b) => BoundingBoxUtils.calculateIoU(a, b);
-
-bool isInside(Detection child, Detection parent) =>
-    BoundingBoxUtils.isInside(child, parent);

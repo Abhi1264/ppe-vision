@@ -36,19 +36,12 @@ class ComplianceStatistics {
   }
 
   factory ComplianceStatistics.fromJson(Map<String, dynamic> json) {
-    int read(String key) {
-      final value = json[key];
-      if (value is int) return value;
-      if (value is num) return value.toInt();
-      return 0;
-    }
-
     return ComplianceStatistics(
-      peopleCount: read('peopleCount'),
-      helmetCount: read('helmetCount'),
-      vestCount: read('vestCount'),
-      compliantCount: read('compliantCount'),
-      violationCount: read('violationCount'),
+      peopleCount: json['peopleCount'] as int,
+      helmetCount: json['helmetCount'] as int,
+      vestCount: json['vestCount'] as int,
+      compliantCount: json['compliantCount'] as int,
+      violationCount: json['violationCount'] as int,
     );
   }
 
