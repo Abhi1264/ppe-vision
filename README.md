@@ -64,12 +64,29 @@ Requires the Flutter SDK (this project was developed with Flutter 3.47 / Dart 3.
 
 ```bash
 flutter pub get
-flutter run
+flutter devices
 ```
 
-Portrait orientation is locked. Grant camera permission when prompted.
+| Platform | Run | Camera |
+| --- | --- | --- |
+| Android / iOS | `flutter run` | Live preview and frame stream. Falls back to the demo preview if init fails (simulators, missing permission). |
+| Web | `flutter run -d chrome` | Live preview when camera permission is granted. Frame streaming is not supported on web, so mock detections overlay the live feed. Serve over HTTPS or `localhost`. |
+| macOS | `flutter run -d macos` | Demo preview and mock detections. The official `camera` plugin has no macOS implementation. |
+| Windows | `flutter run -d windows` | Demo preview and mock detections. No endorsed camera plugin; image streaming is unavailable. |
+| Linux | `flutter run -d linux` | Demo preview and mock detections. No camera plugin implementation. |
 
-On simulators without a camera, the detection screen falls back to a demo preview and still runs mock detections.
+```bash
+flutter run                 # default device (usually a connected phone)
+flutter run -d chrome
+flutter run -d macos
+flutter run -d windows
+flutter run -d linux
+flutter build web
+```
+
+Portrait orientation is locked on mobile. Grant camera permission when prompted.
+
+On any platform where the camera cannot start, the detection screen uses `FallbackCameraBackground` and still runs mock detections.
 
 ## Mock mode
 

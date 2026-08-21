@@ -28,6 +28,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>PPE Vision uses the camera to detect helmets and safety vests in real time.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>PPE Vision does not record audio; this permission is required by the camera plugin.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

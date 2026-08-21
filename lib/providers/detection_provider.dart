@@ -156,7 +156,13 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
     try {
       await _camera.initialize();
       if (!_isCurrent(generation)) return;
-      await _camera.startImageStream(_onFrame);
+      if (_camera.supportsImageStream) {
+        await _camera.startImageStream(_onFrame);
+      } else {
+        // Web (and some desktops) can show a live preview but cannot stream
+        // frames. Keep the camera and drive mock detections synthetically.
+        _scheduleFallback();
+      }
       if (!_isCurrent(generation)) return;
       state = state.copyWith(
         cameraPhase: CameraPhase.ready,
@@ -229,7 +235,13 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
       return;
     }
     try {
-      await _camera.resume(_onFrame);
+      if (_camera.supportsImageStream) {
+        await _camera.resume(_onFrame);
+      } else if (_camera.isInitialized) {
+        _scheduleFallback();
+      } else {
+        _startFallback(AppStrings.cameraUnavailable);
+      }
     } catch (_) {
       _startFallback(AppStrings.cameraUnavailable);
     }

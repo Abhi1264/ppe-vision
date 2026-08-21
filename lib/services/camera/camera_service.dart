@@ -15,6 +15,7 @@ abstract class CameraService {
   Future<void> dispose();
 
   bool get isInitialized;
+  bool get supportsImageStream;
   Size? get previewSize;
   Widget? buildPreview();
 }
@@ -25,6 +26,10 @@ class FlutterCameraService implements CameraService {
 
   @override
   bool get isInitialized => _controller?.value.isInitialized ?? false;
+
+  @override
+  bool get supportsImageStream =>
+      _controller?.supportsImageStreaming() ?? false;
 
   @override
   Size? get previewSize {
@@ -88,6 +93,7 @@ class FlutterCameraService implements CameraService {
     if (controller == null || !controller.value.isInitialized) {
       throw const CameraInitializationException('Camera is not ready.');
     }
+    if (!controller.supportsImageStreaming()) return;
     if (controller.value.isStreamingImages) return;
     _streaming = true;
     await controller.startImageStream((image) {
@@ -100,7 +106,8 @@ class FlutterCameraService implements CameraService {
   Future<void> stopImageStream() async {
     _streaming = false;
     final controller = _controller;
-    if (controller == null || !controller.value.isStreamingImages) return;
+    if (controller == null || !controller.supportsImageStreaming()) return;
+    if (!controller.value.isStreamingImages) return;
     await controller.stopImageStream();
   }
 
