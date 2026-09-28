@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app/routes.dart';
 import '../app/theme.dart';
 import '../core/constants/app_constants.dart';
+import '../providers/camera_provider.dart';
 import '../providers/detection_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/app_button.dart';
@@ -23,6 +24,8 @@ class DetectionScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(detectionSessionProvider);
     final settings = ref.watch(settingsProvider);
+    final previewSize = ref.watch(cameraServiceProvider).previewSize;
+    final alignToPreview = !session.usingFallbackPreview;
 
     return Theme(
       data: AppTheme.detection(),
@@ -38,6 +41,7 @@ class DetectionScreen extends ConsumerWidget {
                 people: session.compliance.people,
                 showConfidence: settings.showConfidence,
                 enabled: settings.showOverlay,
+                imageSize: alignToPreview ? previewSize : null,
               ),
               DetectionHud(session: session),
               if (session.capturedFlash)

@@ -36,44 +36,6 @@ class SettingsScreen extends ConsumerWidget {
                 max: DetectionConstants.maxConfidenceThreshold,
                 onChanged: notifier.setConfidenceThreshold,
               ),
-              const Divider(height: 1),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  14,
-                  AppSpacing.lg,
-                  AppSpacing.sm,
-                ),
-                child: Text(
-                  AppStrings.detectionProvider,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.ink,
-                  ),
-                ),
-              ),
-              RadioGroup<DetectionBackend>(
-                groupValue: settings.backend,
-                onChanged: (value) {
-                  if (value == null) return;
-                  notifier.setBackend(value);
-                },
-                child: const Column(
-                  children: [
-                    RadioListTile<DetectionBackend>(
-                      value: DetectionBackend.mock,
-                      title: Text(AppStrings.providerMock),
-                      subtitle: Text(AppStrings.providerMockSubtitle),
-                    ),
-                    RadioListTile<DetectionBackend>(
-                      value: DetectionBackend.model,
-                      enabled: false,
-                      title: Text(AppStrings.providerModel),
-                      subtitle: Text(AppStrings.providerModelSubtitle),
-                    ),
-                  ],
-                ),
-              ),
               SwitchListTile(
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.lg,

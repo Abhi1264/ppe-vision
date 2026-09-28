@@ -15,7 +15,7 @@ android {
 
     defaultConfig {
         applicationId = "com.ppevision.ppe_vision"
-        minSdk = flutter.minSdkVersion
+        minSdk = maxOf(flutter.minSdkVersion, 26)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

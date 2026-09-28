@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app/theme.dart';
 import '../core/constants/app_constants.dart';
+import '../core/utils/image_utils.dart';
 import '../models/detection.dart';
 import '../models/person_detection.dart';
 import 'detection_box.dart';
@@ -13,12 +14,16 @@ class DetectionOverlay extends StatelessWidget {
     this.people = const [],
     this.showConfidence = true,
     this.enabled = true,
+    this.imageSize,
   });
 
   final List<Detection> detections;
   final List<PersonDetection> people;
   final bool showConfidence;
   final bool enabled;
+
+  /// Oriented camera frame size. When set, boxes use the same cover-crop as the preview.
+  final Size? imageSize;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +33,7 @@ class DetectionOverlay extends StatelessWidget {
         detections: detections,
         people: people,
         showConfidence: showConfidence,
+        imageSize: imageSize,
       ),
       child: const SizedBox.expand(),
     );
@@ -39,11 +45,13 @@ class DetectionOverlayPainter extends CustomPainter {
     required this.detections,
     required this.people,
     required this.showConfidence,
+    this.imageSize,
   });
 
   final List<Detection> detections;
   final List<PersonDetection> people;
   final bool showConfidence;
+  final Size? imageSize;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -53,11 +61,20 @@ class DetectionOverlayPainter extends CustomPainter {
   }
 
   void _paintDetection(Canvas canvas, Size size, Detection detection) {
+    final frame = imageSize;
+    final placed = frame == null
+        ? (left: 0.0, top: 0.0, width: size.width, height: size.height)
+        : ImageUtils.coverRect(
+            viewWidth: size.width,
+            viewHeight: size.height,
+            imageWidth: frame.width,
+            imageHeight: frame.height,
+          );
     final rect = Rect.fromLTRB(
-      detection.x1 * size.width,
-      detection.y1 * size.height,
-      detection.x2 * size.width,
-      detection.y2 * size.height,
+      placed.left + detection.x1 * placed.width,
+      placed.top + detection.y1 * placed.height,
+      placed.left + detection.x2 * placed.width,
+      placed.top + detection.y2 * placed.height,
     );
     if (rect.width <= 1 || rect.height <= 1) return;
 
@@ -140,6 +157,7 @@ class DetectionOverlayPainter extends CustomPainter {
   bool shouldRepaint(covariant DetectionOverlayPainter oldDelegate) {
     return oldDelegate.detections != detections ||
         oldDelegate.people != people ||
-        oldDelegate.showConfidence != showConfidence;
+        oldDelegate.showConfidence != showConfidence ||
+        oldDelegate.imageSize != imageSize;
   }
 }

@@ -8,8 +8,6 @@ class AppConstants {
   static const String aboutBlurb = 'Computer Vision Demo';
 }
 
-enum DetectionBackend { mock, model }
-
 abstract final class AppStrings {
   static const siteEyebrow = 'SITE SAFETY MONITOR';
   static const startDetection = 'Start Detection';
@@ -17,8 +15,7 @@ abstract final class AppStrings {
   static const settings = 'Settings';
   static const capture = 'Capture';
   static const back = 'Back';
-  static const mockModeBadge = 'Mock detections · no model required';
-  static const modelModeBadge = 'Model provider selected';
+  static const modelModeBadge = 'On-device YOLO11 · helmet, vest, person';
   static const captureSaved = 'Saved to detection history';
   static const demoPreview = 'DEMO PREVIEW';
   static const detectionActive = 'Detection active';
@@ -26,7 +23,7 @@ abstract final class AppStrings {
   static const startingCamera = 'Starting camera…';
   static const demoPreviewStatus = 'Demo preview';
   static const cameraUnavailable =
-      'Camera unavailable. Showing demo preview with mock detections.';
+      'Camera unavailable. Showing the demo preview.';
   static const modelUnimplemented = 'Model detection is not implemented.';
   static const inferenceFailed = 'Detection failed for this frame.';
   static const peopleDetectedSuffix = 'People Detected';
@@ -39,12 +36,6 @@ abstract final class AppStrings {
   static const performanceSection = 'Performance';
   static const aboutSection = 'About';
   static const confidenceThreshold = 'Confidence threshold';
-  static const detectionProvider = 'Detection provider';
-  static const providerMock = 'Mock';
-  static const providerMockSubtitle = 'Functional demo detections';
-  static const providerModel = 'Model';
-  static const providerModelSubtitle =
-      'Not implemented — awaiting TFLite model';
   static const enableOverlay = 'Enable detection overlay';
   static const showConfidence = 'Show confidence scores';
   static const targetInferenceFps = 'Target inference FPS';

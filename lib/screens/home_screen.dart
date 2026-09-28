@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../app/routes.dart';
 import '../core/constants/app_constants.dart';
-import '../providers/settings_provider.dart';
 import '../widgets/app_button.dart';
 import '../widgets/brand_mark.dart';
 import '../widgets/mode_badge.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final backend = ref.watch(settingsProvider.select((s) => s.backend));
+  Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -93,14 +90,7 @@ class HomeScreen extends ConsumerWidget {
                                   .pushNamed(AppRoutes.settings),
                             ),
                             const SizedBox(height: AppSpacing.md),
-                            ModeBadge(
-                              label: switch (backend) {
-                                DetectionBackend.mock =>
-                                  AppStrings.mockModeBadge,
-                                DetectionBackend.model =>
-                                  AppStrings.modelModeBadge,
-                              },
-                            ),
+                            const ModeBadge(label: AppStrings.modelModeBadge),
                           ],
                         ),
                       ),

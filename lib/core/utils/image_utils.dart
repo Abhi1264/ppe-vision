@@ -1,5 +1,28 @@
+import 'dart:math' as math;
+
 class ImageUtils {
   ImageUtils._();
+
+  /// Destination rect for a cover-fit of [imageWidth]×[imageHeight] in a view.
+  static ({double left, double top, double width, double height}) coverRect({
+    required double viewWidth,
+    required double viewHeight,
+    required double imageWidth,
+    required double imageHeight,
+  }) {
+    if (imageWidth <= 0 || imageHeight <= 0 || viewWidth <= 0 || viewHeight <= 0) {
+      return (left: 0, top: 0, width: viewWidth, height: viewHeight);
+    }
+    final scale = math.max(viewWidth / imageWidth, viewHeight / imageHeight);
+    final width = imageWidth * scale;
+    final height = imageHeight * scale;
+    return (
+      left: (viewWidth - width) / 2,
+      top: (viewHeight - height) / 2,
+      width: width,
+      height: height,
+    );
+  }
 
   static ({double x, double y}) normalizedToPixel({
     required double nx,

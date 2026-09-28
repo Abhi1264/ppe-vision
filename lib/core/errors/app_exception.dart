@@ -30,8 +30,7 @@ class CameraInitializationException extends AppException {
 
 class ModelUnavailableException extends AppException {
   const ModelUnavailableException([
-    super.message =
-        'The detection model is not available yet. Switch to Mock in Settings.',
+    super.message = 'The detection model could not be loaded.',
   ]);
 }
 

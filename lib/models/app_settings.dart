@@ -1,10 +1,8 @@
-import '../core/constants/app_constants.dart';
 import '../core/constants/detection_constants.dart';
 
 class AppSettings {
   const AppSettings({
     required this.confidenceThreshold,
-    required this.backend,
     required this.showOverlay,
     required this.showConfidence,
     required this.targetInferenceFps,
@@ -15,7 +13,6 @@ class AppSettings {
   factory AppSettings.defaults() {
     return const AppSettings(
       confidenceThreshold: DetectionConstants.defaultConfidenceThreshold,
-      backend: DetectionBackend.mock,
       showOverlay: true,
       showConfidence: true,
       targetInferenceFps: DetectionConstants.defaultTargetFps,
@@ -25,7 +22,6 @@ class AppSettings {
   }
 
   final double confidenceThreshold;
-  final DetectionBackend backend;
   final bool showOverlay;
   final bool showConfidence;
   final int targetInferenceFps;
@@ -34,7 +30,6 @@ class AppSettings {
 
   AppSettings copyWith({
     double? confidenceThreshold,
-    DetectionBackend? backend,
     bool? showOverlay,
     bool? showConfidence,
     int? targetInferenceFps,
@@ -43,7 +38,6 @@ class AppSettings {
   }) {
     return AppSettings(
       confidenceThreshold: confidenceThreshold ?? this.confidenceThreshold,
-      backend: backend ?? this.backend,
       showOverlay: showOverlay ?? this.showOverlay,
       showConfidence: showConfidence ?? this.showConfidence,
       targetInferenceFps: targetInferenceFps ?? this.targetInferenceFps,

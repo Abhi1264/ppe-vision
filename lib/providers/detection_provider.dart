@@ -12,15 +12,14 @@ import '../models/detection_frame.dart';
 import '../models/frame_data.dart';
 import '../services/camera/camera_service.dart';
 import '../services/compliance/ppe_compliance_analyzer.dart';
-import '../services/detection/detection_engine_factory.dart';
 import '../services/detection/detection_provider.dart' as engine;
+import '../services/detection/model_detection_provider.dart';
 import 'camera_provider.dart';
 import 'history_provider.dart';
 import 'settings_provider.dart';
 
 final detectionEngineProvider = Provider<engine.DetectionProvider>((ref) {
-  final backend = ref.watch(settingsProvider.select((s) => s.backend));
-  final provider = createDetectionEngine(backend);
+  final provider = ModelDetectionProvider();
   ref.onDispose(provider.dispose);
   return provider;
 });
@@ -276,10 +275,10 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
     final started = DateTime.now();
     try {
       final raw = await _engine.detect(frame);
-      final detections = [
+      final detections = detectionsWithPeople([
         for (final detection in raw)
           if (detection.confidence >= threshold) detection.clampNormalized(),
-      ];
+      ]);
       final people = _analyzer.analyze(detections);
       final inferenceTime = DateTime.now().difference(started);
       _fps.record(DateTime.now());

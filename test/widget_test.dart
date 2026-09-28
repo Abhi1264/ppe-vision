@@ -17,7 +17,7 @@ void main() {
     expect(find.text('Settings'), findsOneWidget);
   });
 
-  testWidgets('detection screen runs mock detections in demo mode', (
+  testWidgets('detection screen opens from home', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1080, 2340);

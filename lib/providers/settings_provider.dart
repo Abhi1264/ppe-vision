@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/app_settings.dart';
-import '../core/constants/app_constants.dart';
 import '../core/constants/detection_constants.dart';
 
 final settingsProvider =
@@ -18,11 +17,6 @@ class SettingsNotifier extends Notifier<AppSettings> {
         DetectionConstants.maxConfidenceThreshold,
       ),
     );
-  }
-
-  void setBackend(DetectionBackend backend) {
-    if (backend == DetectionBackend.model) return;
-    state = state.copyWith(backend: backend);
   }
 
   void setShowOverlay(bool value) {
