@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../screens/detection_screen.dart';
 import '../screens/history_screen.dart';
 import '../screens/home_screen.dart';
+import '../screens/report_screen.dart';
 import '../screens/settings_screen.dart';
 import 'routes.dart';
 import 'theme.dart';
@@ -21,6 +22,7 @@ class PpeVisionApp extends StatelessWidget {
         AppRoutes.home: (_) => const HomeScreen(),
         AppRoutes.detection: (_) => const DetectionScreen(),
         AppRoutes.history: (_) => const HistoryScreen(),
+        AppRoutes.report: (_) => const ReportScreen(),
         AppRoutes.settings: (_) => const SettingsScreen(),
       },
     );

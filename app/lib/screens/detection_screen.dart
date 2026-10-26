@@ -24,8 +24,9 @@ class DetectionScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(detectionSessionProvider);
     final settings = ref.watch(settingsProvider);
-    final previewSize = ref.watch(cameraServiceProvider).previewSize;
-    final alignToPreview = !session.usingFallbackPreview;
+    final imageSize = session.previewWidth > 0 && session.previewHeight > 0
+        ? Size(session.previewWidth.toDouble(), session.previewHeight.toDouble())
+        : ref.watch(cameraServiceProvider).previewSize;
 
     return Theme(
       data: AppTheme.detection(),
@@ -41,15 +42,15 @@ class DetectionScreen extends ConsumerWidget {
                 people: session.compliance.people,
                 showConfidence: settings.showConfidence,
                 enabled: settings.showOverlay,
-                imageSize: alignToPreview ? previewSize : null,
+                imageSize: imageSize,
               ),
               DetectionHud(session: session),
-              if (session.capturedFlash)
-                const Align(
+              if (session.notice != null)
+                Align(
                   alignment: Alignment.topCenter,
                   child: Padding(
-                    padding: EdgeInsets.only(top: 92),
-                    child: CaptureToast(),
+                    padding: const EdgeInsets.only(top: 92, left: 16, right: 16),
+                    child: MessageBanner(text: session.notice!),
                   ),
                 ),
             ],
@@ -205,13 +206,23 @@ class DetectionBottomPanel extends ConsumerWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 AppButton(
-                  label: AppStrings.capture,
-                  icon: Icons.camera_outlined,
+                  label: 'Event log',
+                  icon: Icons.list_alt,
                   variant: AppButtonVariant.accent,
-                  onPressed: session.canCapture
-                      ? () => ref.read(detectionSessionProvider.notifier).capture()
-                      : null,
+                  onPressed: () =>
+                      Navigator.of(context).pushNamed(AppRoutes.history),
                 ),
+                if (ref.watch(settingsProvider).useDeviceCamera) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  AppButton(
+                    label: 'Switch camera (${session.lensLabel})',
+                    icon: Icons.cameraswitch_outlined,
+                    variant: AppButtonVariant.outlined,
+                    onPressed: () => ref
+                        .read(detectionSessionProvider.notifier)
+                        .switchCamera(),
+                  ),
+                ],
               ],
             ),
           ),

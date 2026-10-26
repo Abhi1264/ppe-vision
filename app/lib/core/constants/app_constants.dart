@@ -15,7 +15,7 @@ abstract final class AppStrings {
   static const settings = 'Settings';
   static const capture = 'Capture';
   static const back = 'Back';
-  static const modelModeBadge = 'On-device YOLO11 · helmet, vest, person';
+  static const modelModeBadge = 'Server detection · hardhat and vest';
   static const captureSaved = 'Saved to detection history';
   static const demoPreview = 'DEMO PREVIEW';
   static const detectionActive = 'Detection active';

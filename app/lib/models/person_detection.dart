@@ -6,19 +6,24 @@ class PersonDetection {
     required this.person,
     this.helmet,
     this.vest,
+    this.countHelmet = true,
+    this.countVest = true,
   });
 
   final Detection person;
   final Detection? helmet;
   final Detection? vest;
+  final bool countHelmet;
+  final bool countVest;
 
   bool get hasHelmet => helmet != null;
   bool get hasVest => vest != null;
-  bool get isCompliant => hasHelmet && hasVest;
+  bool get isCompliant =>
+      (!countHelmet || hasHelmet) && (!countVest || hasVest);
 
   List<String> get missingItems => [
-    if (!hasHelmet) 'helmet',
-    if (!hasVest) 'vest',
+    if (countHelmet && !hasHelmet) 'helmet',
+    if (countVest && !hasVest) 'vest',
   ];
 
   String get missingSummary {

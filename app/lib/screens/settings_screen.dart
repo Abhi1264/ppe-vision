@@ -25,6 +25,44 @@ class SettingsScreen extends ConsumerWidget {
           AppSpacing.screen,
         ),
         children: [
+          const SectionTitle('Server'),
+          SettingsCard(
+            children: [
+              ServerUrlField(
+                url: settings.serverUrl,
+                onSubmit: notifier.setServerUrl,
+              ),
+              SwitchListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                title: const Text('Require hardhat'),
+                value: settings.requireHardhat,
+                onChanged: notifier.setRequireHardhat,
+              ),
+              SwitchListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                title: const Text('Require vest'),
+                value: settings.requireVest,
+                onChanged: notifier.setRequireVest,
+              ),
+              SliderTile(
+                label: 'Frames before an event',
+                valueLabel: '${settings.confirmFrames}',
+                value: settings.confirmFrames.toDouble(),
+                min: 1,
+                max: 30,
+                divisions: 29,
+                onChanged: (value) => notifier.setConfirmFrames(value.round()),
+              ),
+              SwitchListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                title: const Text('Use this device camera'),
+                subtitle: const Text('Off uses the server webcam.'),
+                value: settings.useDeviceCamera,
+                onChanged: notifier.setUseDeviceCamera,
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xl),
           const SectionTitle(AppStrings.detectionSection),
           SettingsCard(
             children: [
@@ -125,6 +163,47 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class ServerUrlField extends StatefulWidget {
+  const ServerUrlField({super.key, required this.url, required this.onSubmit});
+
+  final String url;
+  final ValueChanged<String> onSubmit;
+
+  @override
+  State<ServerUrlField> createState() => _ServerUrlFieldState();
+}
+
+class _ServerUrlFieldState extends State<ServerUrlField> {
+  late final TextEditingController _controller = TextEditingController(text: widget.url);
+
+  @override
+  void didUpdateWidget(ServerUrlField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url && _controller.text == oldWidget.url) {
+      _controller.text = widget.url;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: TextField(
+        controller: _controller,
+        decoration: const InputDecoration(labelText: 'Server URL'),
+        onSubmitted: widget.onSubmit,
+        onEditingComplete: () => widget.onSubmit(_controller.text),
       ),
     );
   }

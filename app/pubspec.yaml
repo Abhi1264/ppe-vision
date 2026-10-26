@@ -13,6 +13,7 @@ dependencies:
   camera_desktop: 1.2.1
   flutter_riverpod: 3.4.3
   shared_preferences: 2.5.5
+  http: 1.5.0
   tflite_flutter: 0.12.1
 
 dev_dependencies:

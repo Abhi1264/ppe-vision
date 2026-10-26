@@ -33,6 +33,6 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
 
     expect(find.textContaining('People Detected'), findsOneWidget);
-    expect(find.text('Capture'), findsOneWidget);
+    expect(find.text('Event log'), findsOneWidget);
   });
 }

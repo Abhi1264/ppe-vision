@@ -81,6 +81,13 @@ class HomeScreen extends StatelessWidget {
                               onPressed: () => Navigator.of(context)
                                   .pushNamed(AppRoutes.history),
                             ),
+                            AppButton(
+                              label: 'Report',
+                              variant: AppButtonVariant.outlined,
+                              icon: Icons.summarize_outlined,
+                              onPressed: () => Navigator.of(context)
+                                  .pushNamed(AppRoutes.report),
+                            ),
                             const SizedBox(height: AppSpacing.xs),
                             AppButton(
                               label: AppStrings.settings,

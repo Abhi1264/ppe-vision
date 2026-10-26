@@ -1,69 +1,57 @@
 # PPE Vision
 
-Detects hardhats and safety vests in a camera frame and scores each detected person as compliant or not.
+Detects people with YOLO11n (COCO) and hardhats and vests with `ml/best.pt` (YOLO11s). A violation event is one tracked person missing a required item for N frames in a row. The Flutter app reads those events from a local server.
 
-`app/` is a Flutter client. It runs YOLO11s on device from `app/assets/models/ppe_model.tflite`. `ml/best.pt` is the checkpoint that export comes from. There is no inference server in this repository.
+Ultralytics is AGPL-3.0.
 
-Ultralytics, which loads `ml/best.pt`, is AGPL-3.0.
+## Run
 
-## Run the app
+```bash
+python3 -m venv server/.venv
+server/.venv/bin/pip install -r server/requirements.txt
+make test-server
+make serve
+```
 
-CI uses Flutter 3.47.1. This tree was last run with Dart 3.13.
+In another terminal:
 
 ```bash
 cd app
 flutter pub get
-flutter analyze --fatal-infos
 flutter test
-flutter run
+flutter run -d macos
 ```
 
-`flutter run -d macos`, `-d chrome`, `-d windows`, and `-d linux` match the same project. On Linux the camera plugin needs GStreamer (`libgstreamer1.0-dev`, `libgstreamer-plugins-base1.0-dev`, `gstreamer1.0-plugins-good`).
+The app expects `http://127.0.0.1:8000`. Change it in Settings. With "Use this device camera" off, the server opens webcam `0`. Turn that setting on to send this device's camera, then use Switch camera for front or back.
 
-The `.tflite` file and the desktop runtime libraries in `app/blobs/` are not in git. Export the float32 model and copy it into place:
+`make eval` writes `ml/eval_out/report.md`.
 
-```bash
-yolo export model=ml/best.pt format=tflite imgsz=640
-```
+`server/.venv/bin/python ml/plot_graphs.py` writes `ml/training_log.png` from `ml/results.csv`.
 
-Destination: `app/assets/models/ppe_model.tflite`. Without that file the detector does not load. The browser target shows the camera preview and does not run TFLite.
+## Model
 
-The camera list is back, then external, then front. The app does not switch cameras after start. If the camera cannot start, the detection screen sends a synthetic frame through the same model and labels the preview as a demo.
+`ml/best.pt` is YOLO11s, classes `hardhat`, `vest`, `person`, input 640. The checkpoint records a Kaggle run at `/kaggle/working/runs/detect/train3` from `yolo11s.pt` and `hardhat.yaml`. The labeled images and the split are not in this repo. `ml/results.csv` is that training log, not a test result.
 
-## Training files
-
-`ml/best.pt` is YOLO11s, classes `hardhat`, `vest`, `person`, input 640. The checkpoint records a Kaggle run at `/kaggle/working/runs/detect/train3`, started from `yolo11s.pt` with data file `hardhat.yaml`. The labeled images and the split are not in this repo.
-
-`ml/results.csv` is the 25-epoch log from that run. It is not a held-out test result.
-
-```bash
-cd ml
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/python plot_graphs.py
-.venv/bin/python test_model.py
-```
-
-`requirements.txt` pins the packages these scripts import, at the versions from the Windows venv that was stored with them. That install has not been re-run on this Mac.
-
-`test_model.py` predicts on `ml/images/` (198 unlabeled stock photos). Those files are gitignored. They are not a test set.
-
-`intelligence.py` opens a webcam with `cv2.CAP_DSHOW` and calls `winsound`. It does not run on macOS. It looks for the label `helmet`. The checkpoint class name is `hardhat`.
+The person class in `best.pt` does not emit boxes. The server uses `ml/yolo11n.pt` (downloaded on first start) for the person track and `best.pt` for hardhat and vest.
 
 ## Results
 
-No held-out metrics have been computed from this repo. Reproduce nothing from `ml/results.csv` as test mAP: the images and labels for that log are absent, so the numbers cannot be regenerated here.
+`make eval` on this machine wrote `ml/eval_out/report.md`. Held-out mAP, leakage, class counts, event precision, the confirm-frames ablation, and failure analysis are not in that file because the labeled split and labeled clips are not here.
+
+Performance lines from that run, unchanged:
+
+```
+ppe best.pt: n=20 image=mixed (11 sizes, not resized) mean_ms=124.682 p95_ms=560.981 fps=8.020
+coco yolo11n.pt: n=20 image=mixed (11 sizes, not resized) mean_ms=32.273 p95_ms=58.474 fps=30.986
+```
+
+Hardware in the same file: Darwin 27.0.0, Apple M3, 8 GB. The 20 images are the unlabeled files in `ml/images/`. They are not a test set. Rerun `make eval` rather than quoting this block after the images or the machine change.
 
 ## Limitations
 
-- A person box is estimated from a hardhat, or from a vest when no hardhat covers it (`app/lib/services/compliance/ppe_compliance_analyzer.dart`). Someone wearing neither is not detected, so a missing-hardhat violation cannot be logged from this model alone.
-- History stores a count snapshot when capture is tapped. It does not store an image, a track id, or a violation interval. Settings last for the session only.
-- No tracker, no event database, and no server API.
-- The original labeled dataset is not here. A separate person detector has not been added. Both are undecided.
-
-## Layout
-
-- `app/` Flutter client and on-device TFLite decoder
-- `ml/` checkpoint, training log, and the three scripts above
-
-A `server/` package is not in this change. Add it when the inference API exists.
+- No labeled test split, so no mAP, no leakage check, and no event precision.
+- Track ids are not names. They reset when a capture session restarts.
+- One capture job at a time. Posting frames while a job is running returns 409.
+- The server has no authentication.
+- On-device TFLite files are still in `app/lib/services/detection/` and are not used by the live screen.
+- `ml/images/` is 198 unlabeled stock photos. `test_model.py` only draws boxes on them.

@@ -16,6 +16,8 @@ abstract class CameraService {
   Future<void> resume(FrameCallback onFrame);
   Future<void> dispose();
 
+  Future<void> useLens(CameraLensDirection direction);
+
   bool get isInitialized;
   bool get supportsImageStream;
   Size? get previewSize;
@@ -37,6 +39,7 @@ List<CameraDescription> rankDetectedCameras(List<CameraDescription> cameras) {
 class FlutterCameraService implements CameraService {
   CameraController? _controller;
   bool _streaming = false;
+  CameraLensDirection? _preferredLens;
 
   @override
   bool get isInitialized => _controller?.value.isInitialized ?? false;
@@ -72,8 +75,15 @@ class FlutterCameraService implements CameraService {
       throw const CameraUnavailableException();
     }
 
+    final ranked = rankDetectedCameras(cameras);
+    final ordered = _preferredLens == null
+        ? ranked
+        : [
+            ...ranked.where((camera) => camera.lensDirection == _preferredLens),
+            ...ranked.where((camera) => camera.lensDirection != _preferredLens),
+          ];
     Object? lastError;
-    for (final camera in rankDetectedCameras(cameras)) {
+    for (final camera in ordered) {
       try {
         await _openCamera(camera);
         return;
@@ -93,6 +103,18 @@ class FlutterCameraService implements CameraService {
       'No detected camera could be initialized.',
       lastError,
     );
+  }
+
+  @override
+  Future<void> useLens(CameraLensDirection direction) async {
+    _preferredLens = direction;
+    final cameras = await _discoverCameras();
+    final matches = cameras.where((camera) => camera.lensDirection == direction);
+    if (matches.isEmpty) {
+      throw const CameraUnavailableException();
+    }
+    await stopImageStream();
+    await _openCamera(matches.first);
   }
 
   Future<List<CameraDescription>> _discoverCameras() async {
