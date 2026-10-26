@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-enum FrameFormat { yuv420, bgra8888, rgba8888, unknown }
+enum FrameFormat { yuv420, bgra8888, rgba8888, jpeg, unknown }
 
 class FramePlane {
   const FramePlane({
@@ -23,6 +23,7 @@ class FrameData {
     this.format = FrameFormat.unknown,
     this.mirrored = false,
     this.planes = const [],
+    this.jpegBytes,
   });
 
   factory FrameData.synthetic({
@@ -46,6 +47,7 @@ class FrameData {
   /// Front-camera preview is mirrored. Pixel buffers are not.
   final bool mirrored;
   final List<FramePlane> planes;
+  final Uint8List? jpegBytes;
 
   bool get hasPixelData => planes.isNotEmpty;
 }

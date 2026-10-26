@@ -1,0 +1,5 @@
+{
+  "venvPath": "server",
+  "venv": ".venv",
+  "exclude": ["**/.*", "**/__pycache__", "app", "ml/venv"]
+}

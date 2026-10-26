@@ -8,11 +8,9 @@ final settingsProvider =
     NotifierProvider<SettingsNotifier, AppSettings>(SettingsNotifier.new);
 
 class SettingsNotifier extends Notifier<AppSettings> {
-  static const _urlKey = 'serverUrl';
   static const _hardhatKey = 'requireHardhat';
   static const _vestKey = 'requireVest';
   static const _framesKey = 'confirmFrames';
-  static const _deviceKey = 'useDeviceCamera';
 
   @override
   AppSettings build() {
@@ -21,11 +19,9 @@ class SettingsNotifier extends Notifier<AppSettings> {
       if (!ref.mounted) return;
       final frames = prefs.getInt(_framesKey) ?? 8;
       state = AppSettings.defaults().copyWith(
-        serverUrl: prefs.getString(_urlKey) ?? AppSettings.defaults().serverUrl,
         requireHardhat: prefs.getBool(_hardhatKey) ?? true,
         requireVest: prefs.getBool(_vestKey) ?? true,
         confirmFrames: frames.clamp(1, 30),
-        useDeviceCamera: prefs.getBool(_deviceKey) ?? false,
       );
     });
     return AppSettings.defaults();
@@ -59,13 +55,6 @@ class SettingsNotifier extends Notifier<AppSettings> {
   void setShowInferenceTime(bool value) =>
       state = state.copyWith(showInferenceTime: value);
 
-  void setServerUrl(String value) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) return;
-    state = state.copyWith(serverUrl: trimmed);
-    _save();
-  }
-
   void setRequireHardhat(bool value) {
     if (!value && !state.requireVest) return;
     state = state.copyWith(requireHardhat: value);
@@ -83,17 +72,10 @@ class SettingsNotifier extends Notifier<AppSettings> {
     _save();
   }
 
-  void setUseDeviceCamera(bool value) {
-    state = state.copyWith(useDeviceCamera: value);
-    _save();
-  }
-
   Future<void> _save() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_urlKey, state.serverUrl);
     await prefs.setBool(_hardhatKey, state.requireHardhat);
     await prefs.setBool(_vestKey, state.requireVest);
     await prefs.setInt(_framesKey, state.confirmFrames);
-    await prefs.setBool(_deviceKey, state.useDeviceCamera);
   }
 }

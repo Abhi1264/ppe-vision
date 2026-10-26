@@ -22,7 +22,7 @@ class FpsIndicator extends StatelessWidget {
     if (!showFps && !showInferenceTime) return const SizedBox.shrink();
 
     final parts = <String>[
-      if (showFps) 'FPS: ${fps.toStringAsFixed(1)}',
+      if (showFps) 'Detect: ${fps.toStringAsFixed(1)}',
       if (showInferenceTime) 'Inference: ${inferenceTime.inMilliseconds} ms',
     ];
 

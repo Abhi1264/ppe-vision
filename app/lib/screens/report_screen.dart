@@ -2,134 +2,153 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../app/theme.dart';
 import '../core/constants/app_constants.dart';
-import '../providers/settings_provider.dart';
-import '../services/api/ppe_api.dart';
+import '../models/site_log.dart';
+import '../providers/event_log_provider.dart';
 
-class ReportScreen extends ConsumerStatefulWidget {
+class ReportScreen extends ConsumerWidget {
   const ReportScreen({super.key});
 
   @override
-  ConsumerState<ReportScreen> createState() => _ReportScreenState();
-}
-
-class _ReportScreenState extends ConsumerState<ReportScreen> {
-  bool _loading = true;
-  String? _error;
-  PpeStats? _stats;
-  String _report = '';
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    final base = ref.read(settingsProvider).serverUrl;
-    try {
-      final stats = await const PpeApi().stats(base);
-      final report = await const PpeApi().report(base);
-      if (!mounted) return;
-      setState(() {
-        _stats = stats;
-        _report = report;
-        _loading = false;
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _error = error.toString();
-        _loading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final log = ref.watch(eventLogProvider);
+    final rate = log.complianceRate == null
+        ? 'Not yet'
+        : '${log.compliantFrames}/${log.personFrames}';
     return Scaffold(
       appBar: AppBar(
         title: const Text('Report'),
         actions: [
           IconButton(
             tooltip: 'Copy report',
-            onPressed: _report.isEmpty
-                ? null
-                : () async {
-                    await Clipboard.setData(ClipboardData(text: _report));
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Copied report')),
-                    );
-                  },
-            icon: const Icon(Icons.copy),
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: _text(log)));
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Copied report')),
+              );
+            },
+            icon: const Icon(Icons.copy_outlined),
           ),
         ],
       ),
-      body: _body(),
+      body: ListView(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        children: [
+          Row(
+            children: [
+              _Metric(label: 'Events', value: '${log.events.length}'),
+              const SizedBox(width: AppSpacing.sm),
+              _Metric(label: 'Compliance', value: rate),
+            ],
+          ),
+          if (log.complianceRate == null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const Text(
+              'Compliance needs a person in the camera view.',
+              style: TextStyle(color: AppColors.body),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.lg),
+          _Section(title: 'By type', rows: log.counts((event) => event.type)),
+          _Section(title: 'By day', rows: log.counts((event) => _day(event.at))),
+          _Section(title: 'By camera', rows: log.counts((event) => event.camera)),
+          const SizedBox(height: AppSpacing.md),
+          const Text(
+            'This log counts missing gear in the camera view. It does not identify a person.',
+            style: TextStyle(color: AppColors.body),
+          ),
+        ],
+      ),
     );
   }
+}
 
-  Widget _body() {
-    if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) {
-      return Center(
+String _text(SiteLog log) {
+  final rate = log.complianceRate == null
+      ? 'not yet'
+      : '${log.compliantFrames}/${log.personFrames}';
+  return 'Events: ${log.events.length}\nCompliance: $rate\n${log.toCsv()}';
+}
+
+String _day(DateTime at) {
+  final local = at.toLocal();
+  final month = local.month.toString().padLeft(2, '0');
+  final day = local.day.toString().padLeft(2, '0');
+  return '${local.year}-$month-$day';
+}
+
+class _Metric extends StatelessWidget {
+  const _Metric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.paper,
+          borderRadius: BorderRadius.circular(AppRadii.xxl),
+          border: Border.all(color: AppColors.hairline),
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(_error!, textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              FilledButton(onPressed: _load, child: const Text('Retry')),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: AppColors.ink,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(label, style: const TextStyle(color: AppColors.steel)),
             ],
           ),
         ),
-      );
-    }
-    final stats = _stats!;
-    final days = stats.byDay.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
-    final hours = stats.byHour.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
-    return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      children: [
-        Text('Events: ${stats.events}'),
-        const SizedBox(height: 8),
-        Text(
-          stats.complianceRate == null
-              ? 'Compliance rate: not available yet. It needs person frames from a running camera.'
-              : 'Compliance rate: ${stats.compliantFrames}/${stats.personFrames} person-frames (${stats.complianceRate})',
-        ),
-        const SizedBox(height: 16),
-        const Text('By type'),
-        if (stats.byType.isEmpty) const Text('None'),
-        for (final entry in stats.byType.entries) Text('${entry.key}: ${entry.value}'),
-        const SizedBox(height: 16),
-        const Text('By day'),
-        if (days.isEmpty) const Text('None'),
-        for (final entry in days) Text('${entry.key}: ${entry.value}'),
-        const SizedBox(height: 16),
-        const Text('By hour'),
-        if (hours.isEmpty) const Text('None'),
-        for (final entry in hours) Text('${entry.key}: ${entry.value}'),
-        const SizedBox(height: 16),
-        const Text('Repeat tracks'),
-        if (stats.tracks.isEmpty) const Text('None'),
-        for (final track in stats.tracks)
-          Text(
-            'camera ${track['camera_id']} track ${track['track_id']}: ${track['events']} events',
-          ),
-        const SizedBox(height: 12),
-        const Text(
-          'A track id is the tracker\'s number for a person in one session. It is not an identity.',
-        ),
-      ],
+      ),
+    );
+  }
+}
+
+class _Section extends StatelessWidget {
+  const _Section({required this.title, required this.rows});
+
+  final String title;
+  final Map<String, int> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: AppSpacing.sm),
+          if (rows.isEmpty)
+            const Text('None', style: TextStyle(color: AppColors.body))
+          else
+            for (final entry in rows.entries)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  '${entry.key} · ${entry.value}',
+                  style: const TextStyle(
+                    color: AppColors.ink,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+        ],
+      ),
     );
   }
 }

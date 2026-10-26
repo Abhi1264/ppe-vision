@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -13,13 +13,14 @@ import '../models/detection.dart';
 import '../models/detection_frame.dart';
 import '../models/frame_data.dart';
 import '../models/person_detection.dart';
-import '../services/api/ppe_api.dart';
+import '../models/site_log.dart';
 import '../services/camera/camera_service.dart';
-import '../services/image/image_preprocessor.dart';
+import '../services/compliance/ppe_compliance_analyzer.dart';
+import '../services/compliance/violation_streak.dart';
+import '../services/detection/model_detection_provider.dart';
 import 'camera_provider.dart';
+import 'event_log_provider.dart';
 import 'settings_provider.dart';
-
-final ppeApiProvider = Provider<PpeApi>((ref) => const PpeApi());
 
 enum CameraPhase { idle, initializing, ready, fallback, failed }
 
@@ -54,7 +55,8 @@ class DetectionSessionState {
 
   List<Detection> get detections => latestFrame?.detections ?? const [];
   Duration get inferenceTime => latestFrame?.inferenceTime ?? Duration.zero;
-  bool get usingFallbackPreview => previewJpeg == null && cameraPhase != CameraPhase.ready;
+  bool get usingFallbackPreview =>
+      previewJpeg == null && cameraPhase != CameraPhase.ready;
 
   DetectionSessionState copyWith({
     CameraPhase? cameraPhase,
@@ -100,15 +102,15 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
     with WidgetsBindingObserver {
   bool _started = false;
   bool _alive = true;
-  bool _posting = false;
+  bool _busy = false;
   int _generation = 0;
-  Timer? _poll;
-  DateTime? _lastPost;
+  DateTime? _lastFrame;
   CameraLensDirection _lens = CameraLensDirection.back;
   final FpsTracker _fps = FpsTracker();
+  final _analyzer = const PPEComplianceAnalyzer();
+  final _streak = ViolationStreak();
   late final CameraService _camera;
-  late final PpeApi _api;
-  String _base = 'http://127.0.0.1:8000';
+  late final ModelDetectionProvider _model;
 
   bool _isCurrent(int generation) => _alive && generation == _generation;
 
@@ -116,7 +118,7 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
   DetectionSessionState build() {
     final observer = this;
     _camera = ref.read(cameraServiceProvider);
-    _api = ref.read(ppeApiProvider);
+    _model = ModelDetectionProvider();
     WidgetsBinding.instance.addObserver(observer);
     _alive = true;
     ref.onDispose(() {
@@ -130,9 +132,12 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!_started) return;
-    if (state == AppLifecycleState.resumed) return;
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_resume());
+      return;
+    }
     if (state == AppLifecycleState.detached) return;
-    _poll?.cancel();
+    _busy = false;
     unawaited(_camera.pause());
   }
 
@@ -140,28 +145,48 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
     if (_started) return;
     _started = true;
     final generation = ++_generation;
-    final settings = ref.read(settingsProvider);
-    _base = settings.serverUrl;
     state = state.copyWith(
       cameraPhase: CameraPhase.initializing,
       isDetecting: false,
       clearError: true,
       clearNotice: true,
-      statusMessage: 'Connecting to ${settings.serverUrl}',
+      statusMessage: 'Starting camera',
     );
-    final problem = await _api.healthError(settings.serverUrl).then<String?>(
-      (error) => error.isEmpty ? null : error,
-      onError: (Object error) => error.toString(),
-    );
-    if (!_isCurrent(generation)) return;
-    if (problem != null) {
-      _fail(problem);
+    try {
+      await _model.initialize();
+      if (!_isCurrent(generation)) return;
+      await _camera.initialize();
+      if (!_isCurrent(generation)) return;
+      if (!_camera.supportsImageStream) {
+        _fail('This camera does not stream frames.');
+        return;
+      }
+      await _camera.startImageStream(_onFrame);
+    } on AppException catch (error) {
+      if (_isCurrent(generation)) _fail(error.message);
+      return;
+    } catch (error) {
+      if (_isCurrent(generation)) _fail(error.toString());
       return;
     }
-    if (settings.useDeviceCamera) {
-      await _startDevice(settings, generation);
-    } else {
-      await _startServerCamera(settings, generation);
+    if (!_isCurrent(generation)) return;
+    state = state.copyWith(
+      cameraPhase: CameraPhase.ready,
+      isDetecting: true,
+      statusMessage: 'Live',
+      lensLabel: _lens == CameraLensDirection.front ? 'front' : 'back',
+      clearError: true,
+    );
+  }
+
+  Future<void> _resume() async {
+    if (!_started) return;
+    try {
+      if (!_model.isReady) await _model.initialize();
+      if (!_camera.isInitialized) await _camera.initialize();
+      await _camera.resume(_onFrame);
+    } catch (error) {
+      if (_started) state = state.copyWith(errorMessage: error.toString());
     }
   }
 
@@ -175,7 +200,7 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
   }
 
   Future<void> switchCamera() async {
-    if (!_started || !ref.read(settingsProvider).useDeviceCamera) return;
+    if (!_started) return;
     final next = _lens == CameraLensDirection.front
         ? CameraLensDirection.back
         : CameraLensDirection.front;
@@ -195,189 +220,103 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
     }
   }
 
-  Future<void> _startServerCamera(AppSettings settings, int generation) async {
-    try {
-      await _api.startJob(
-        base: settings.serverUrl,
-        source: '0',
-        cameraId: '0',
-        required: settings.requiredPpe,
-        confirmFrames: settings.confirmFrames,
-        conf: settings.confidenceThreshold,
-      );
-    } catch (error) {
-      if (_isCurrent(generation)) _fail(error.toString());
-      return;
-    }
-    if (!_isCurrent(generation)) return;
-    state = state.copyWith(
-      cameraPhase: CameraPhase.ready,
-      isDetecting: true,
-      statusMessage: 'Server webcam',
-      clearError: true,
-    );
-    _poll = Timer.periodic(
-      Duration(milliseconds: (1000 / settings.targetInferenceFps).round()),
-      (_) => unawaited(_pullServer()),
-    );
-  }
-
-  Future<void> _startDevice(AppSettings settings, int generation) async {
-    try {
-      await _camera.initialize();
-      if (!_isCurrent(generation)) return;
-      if (_camera.supportsImageStream) {
-        await _camera.startImageStream(_onFrame);
-      } else {
-        _fail('This device camera does not stream frames.');
-        return;
-      }
-    } on AppException catch (error) {
-      if (_isCurrent(generation)) _fail(error.message);
-      return;
-    } catch (error) {
-      if (_isCurrent(generation)) _fail(error.toString());
-      return;
-    }
-    state = state.copyWith(
-      cameraPhase: CameraPhase.ready,
-      isDetecting: true,
-      statusMessage: 'Device camera',
-      lensLabel: 'back',
-      clearError: true,
-    );
-  }
-
-  Future<void> _pullServer() async {
-    if (!_started || _posting) return;
-    _posting = true;
-    final settings = ref.read(settingsProvider);
-    try {
-      final view = await _api.live(settings.serverUrl, '0');
-      if (!_started) return;
-      _apply(view, settings);
-    } catch (error) {
-      if (_started) state = state.copyWith(errorMessage: error.toString());
-    } finally {
-      _posting = false;
-    }
-  }
-
   void _onFrame(FrameData frame) {
-    if (!_started || _posting) return;
+    if (!_started || _busy) return;
     final settings = ref.read(settingsProvider);
     final minInterval = Duration(
       milliseconds: (1000 / settings.targetInferenceFps).round(),
     );
     final now = DateTime.now();
-    if (_lastPost != null && now.difference(_lastPost!) < minInterval) return;
-    _posting = true;
-    _lastPost = now;
-    unawaited(_post(frame, settings));
+    if (_lastFrame != null && now.difference(_lastFrame!) < minInterval) return;
+    _busy = true;
+    _lastFrame = now;
+    unawaited(_infer(frame, settings, _generation));
   }
 
-  Future<void> _post(FrameData frame, AppSettings settings) async {
+  Future<void> _infer(
+    FrameData frame,
+    AppSettings settings,
+    int generation,
+  ) async {
+    final started = DateTime.now();
     try {
-      final image = await const DefaultImagePreprocessor().process(frame);
-      final view = await _api.postFrame(
-        base: settings.serverUrl,
-        rgb: image.rgbBytes,
-        width: image.width,
-        height: image.height,
-        cameraId: 'device-${state.lensLabel}',
-        required: settings.requiredPpe,
-        confirmFrames: settings.confirmFrames,
-        conf: settings.confidenceThreshold,
-      );
-      if (!_started) return;
-      _apply(view, settings);
-    } catch (error) {
-      if (_started) state = state.copyWith(errorMessage: error.toString());
-    } finally {
-      _posting = false;
-    }
-  }
-
-  void _apply(LiveView view, AppSettings settings) {
-    final detections = <Detection>[];
-    final people = <PersonDetection>[];
-    for (final track in view.tracks) {
-      final person = _box(DetectionClass.person, 'person', track.person, track.confidence);
-      final hardhat = track.hardhat == null
-          ? null
-          : _box(DetectionClass.helmet, 'hardhat', track.hardhat!, track.confidence);
-      final vest = track.vest == null
-          ? null
-          : _box(DetectionClass.vest, 'vest', track.vest!, track.confidence);
-      detections.add(person);
-      if (hardhat != null) detections.add(hardhat);
-      if (vest != null) detections.add(vest);
-      people.add(
-        PersonDetection(
-          person: person,
-          helmet: hardhat,
-          vest: vest,
-          countHelmet: settings.requireHardhat,
-          countVest: settings.requireVest,
+      final raw = await _model.detect(frame);
+      if (!_isCurrent(generation)) return;
+      final kept = [
+        for (final detection in detectionsWithPeople(raw))
+          if (detection.confidence >= settings.confidenceThreshold) detection,
+      ];
+      final people = [
+        for (final person in _analyzer.analyze(kept))
+          PersonDetection(
+            person: person.person,
+            helmet: person.helmet,
+            vest: person.vest,
+            countHelmet: settings.requireHardhat,
+            countVest: settings.requireVest,
+          ),
+      ];
+      final compliance = ComplianceResult.fromPeople(people);
+      final fired = _streak.tick(
+        missingHardhat: people.any(
+          (person) => person.missingItems.contains('helmet'),
         ),
+        missingVest: people.any(
+          (person) => person.missingItems.contains('vest'),
+        ),
+        confirm: settings.confirmFrames,
       );
+      final log = ref.read(eventLogProvider.notifier);
+      log.addFrames(
+        compliance.statistics.peopleCount,
+        compliance.statistics.compliantCount,
+      );
+      if (fired.isNotEmpty) {
+        final camera = state.lensLabel;
+        log.addEvents([
+          for (final type in fired)
+            SiteEvent(type: type, camera: camera, at: DateTime.now()),
+        ]);
+      }
+      _fps.record(DateTime.now());
+      state = state.copyWith(
+        latestFrame: DetectionFrame(
+          detections: kept,
+          timestamp: DateTime.now(),
+          inferenceTime: DateTime.now().difference(started),
+        ),
+        compliance: compliance,
+        fps: _fps.value,
+        isDetecting: true,
+        cameraPhase: CameraPhase.ready,
+        clearError: true,
+      );
+    } catch (error) {
+      if (_isCurrent(generation)) {
+        state = state.copyWith(errorMessage: error.toString());
+      }
+    } finally {
+      if (_isCurrent(generation)) _busy = false;
     }
-    _fps.record(DateTime.now());
-    final notice = view.opened.isEmpty
-        ? null
-        : 'Logged ${view.opened.map((event) => event['violation_type']).join(', ')}';
-    state = state.copyWith(
-      latestFrame: DetectionFrame(
-        detections: detections,
-        timestamp: DateTime.now(),
-        inferenceTime: Duration.zero,
-      ),
-      compliance: ComplianceResult.fromPeople(people),
-      fps: _fps.value,
-      isDetecting: true,
-      previewJpeg: view.jpeg ?? state.previewJpeg,
-      previewWidth: view.width,
-      previewHeight: view.height,
-      notice: notice,
-      clearNotice: notice == null,
-      clearError: true,
-      cameraPhase: CameraPhase.ready,
-    );
-  }
-
-  Detection _box(DetectionClass type, String label, List<double> coords, double confidence) {
-    return Detection(
-      classType: type,
-      label: label,
-      confidence: confidence,
-      x1: coords[0],
-      y1: coords[1],
-      x2: coords[2],
-      y2: coords[3],
-    );
   }
 
   void _fail(String message) {
     _started = false;
-    _poll?.cancel();
     state = state.copyWith(
       cameraPhase: CameraPhase.failed,
       isDetecting: false,
       errorMessage: message,
-      statusMessage: 'Not detecting',
+      statusMessage: 'Camera unavailable',
     );
   }
 
   Future<void> _teardown() async {
-    _poll?.cancel();
-    _poll = null;
-    _posting = false;
-    final base = _base;
+    _busy = false;
     try {
       await _camera.stopImageStream();
     } catch (_) {}
     try {
-      await _api.stopJob(base);
+      await _model.dispose();
     } catch (_) {}
   }
 }

@@ -39,7 +39,7 @@ def measure() -> str | None:
         return None
     try:
         import cv2
-        from ultralytics import YOLO
+        from ultralytics.models import YOLO
     except Exception as error:
         return f"Runtime import failed: {error}"
     paths = sorted(

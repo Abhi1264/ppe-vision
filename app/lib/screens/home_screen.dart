@@ -53,11 +53,6 @@ class HomeScreen extends StatelessWidget {
                               AppConstants.appSubtitle,
                               style: textTheme.titleMedium,
                             ),
-                            const SizedBox(height: AppSpacing.lg),
-                            Text(
-                              AppConstants.appDescription,
-                              style: textTheme.bodyMedium,
-                            ),
                           ],
                         ),
                       ),
@@ -75,9 +70,9 @@ class HomeScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 10),
                             AppButton(
-                              label: AppStrings.detectionHistory,
+                              label: 'Event log',
                               variant: AppButtonVariant.outlined,
-                              icon: Icons.history,
+                              icon: Icons.list_alt,
                               onPressed: () => Navigator.of(context)
                                   .pushNamed(AppRoutes.history),
                             ),

@@ -7,15 +7,12 @@ import '../core/constants/app_constants.dart';
 import '../providers/camera_provider.dart';
 import '../providers/detection_provider.dart';
 import '../providers/settings_provider.dart';
-import '../widgets/app_button.dart';
 import '../widgets/camera_view.dart';
-import '../widgets/compliance_card.dart';
 import '../widgets/detection_overlay.dart';
 import '../widgets/detection_session_binder.dart';
 import '../widgets/detection_status_chip.dart';
 import '../widgets/feedback_banners.dart';
 import '../widgets/fps_indicator.dart';
-import '../widgets/statistics_panel.dart';
 
 class DetectionScreen extends ConsumerWidget {
   const DetectionScreen({super.key});
@@ -25,7 +22,10 @@ class DetectionScreen extends ConsumerWidget {
     final session = ref.watch(detectionSessionProvider);
     final settings = ref.watch(settingsProvider);
     final imageSize = session.previewWidth > 0 && session.previewHeight > 0
-        ? Size(session.previewWidth.toDouble(), session.previewHeight.toDouble())
+        ? Size(
+            session.previewWidth.toDouble(),
+            session.previewHeight.toDouble(),
+          )
         : ref.watch(cameraServiceProvider).previewSize;
 
     return Theme(
@@ -49,7 +49,11 @@ class DetectionScreen extends ConsumerWidget {
                 Align(
                   alignment: Alignment.topCenter,
                   child: Padding(
-                    padding: const EdgeInsets.only(top: 92, left: 16, right: 16),
+                    padding: const EdgeInsets.only(
+                      top: 92,
+                      left: 16,
+                      right: 16,
+                    ),
                     child: MessageBanner(text: session.notice!),
                   ),
                 ),
@@ -61,13 +65,13 @@ class DetectionScreen extends ConsumerWidget {
   }
 }
 
-class DetectionHud extends StatelessWidget {
+class DetectionHud extends ConsumerWidget {
   const DetectionHud({super.key, required this.session});
 
   final DetectionSessionState session;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SafeArea(
       bottom: false,
       child: Column(
@@ -75,6 +79,11 @@ class DetectionHud extends StatelessWidget {
           DetectionTopBar(
             onSettings: () =>
                 Navigator.of(context).pushNamed(AppRoutes.settings),
+            onEventLog: () =>
+                Navigator.of(context).pushNamed(AppRoutes.history),
+            onSwitch: () =>
+                ref.read(detectionSessionProvider.notifier).switchCamera(),
+            switchLabel: session.lensLabel,
           ),
           const DetectionFpsBar(),
           if (session.errorMessage != null)
@@ -96,15 +105,29 @@ class DetectionHud extends StatelessWidget {
 }
 
 class DetectionTopBar extends StatelessWidget {
-  const DetectionTopBar({super.key, this.onSettings});
+  const DetectionTopBar({
+    super.key,
+    this.onSettings,
+    this.onEventLog,
+    this.onSwitch,
+    this.switchLabel = 'back',
+  });
 
   final VoidCallback? onSettings;
+  final VoidCallback? onEventLog;
+  final VoidCallback? onSwitch;
+  final String switchLabel;
 
   @override
   Widget build(BuildContext context) {
     final color = Theme.of(context).colorScheme.onSurface;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.xs, AppSpacing.xs, AppSpacing.sm),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.sm,
+        AppSpacing.xs,
+        AppSpacing.xs,
+        AppSpacing.sm,
+      ),
       child: Row(
         children: [
           IconButton(
@@ -123,11 +146,25 @@ class DetectionTopBar extends StatelessWidget {
               ),
             ),
           ),
+          if (onEventLog != null)
+            IconButton(
+              tooltip: 'Event log',
+              onPressed: onEventLog,
+              icon: const Icon(Icons.list_alt),
+              color: color,
+            ),
           if (onSettings != null)
             IconButton(
               tooltip: AppStrings.settings,
               onPressed: onSettings,
               icon: const Icon(Icons.settings_outlined),
+              color: color,
+            ),
+          if (onSwitch != null)
+            IconButton(
+              tooltip: switchLabel,
+              onPressed: onSwitch,
+              icon: const Icon(Icons.cameraswitch_outlined),
               color: color,
             ),
         ],
@@ -158,13 +195,13 @@ class DetectionFpsBar extends ConsumerWidget {
   }
 }
 
-class DetectionBottomPanel extends ConsumerWidget {
+class DetectionBottomPanel extends StatelessWidget {
   const DetectionBottomPanel({super.key, required this.session});
 
   final DetectionSessionState session;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final stats = session.compliance.statistics;
     return ColoredBox(
       color: AppColors.panel,
@@ -177,52 +214,27 @@ class DetectionBottomPanel extends ConsumerWidget {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.lg,
-              14,
-              AppSpacing.lg,
               AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.sm,
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+            child: Row(
               children: [
-                Align(
-                  alignment: Alignment.centerLeft,
+                Expanded(
                   child: Text(
-                    '${stats.peopleCount} ${AppStrings.peopleDetectedSuffix}',
+                    _counts(stats.peopleCount, stats.violationCount),
                     style: const TextStyle(
                       color: AppColors.paper,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
+                      fontFeatures: [FontFeature.tabularFigures()],
                     ),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.md),
-                StatisticsPanel(statistics: stats),
-                const SizedBox(height: AppSpacing.md),
-                ComplianceCard(result: session.compliance),
-                const SizedBox(height: AppSpacing.md),
                 DetectionStatusChip(
                   active: session.isDetecting,
                   label: session.statusMessage,
                 ),
-                const SizedBox(height: AppSpacing.md),
-                AppButton(
-                  label: 'Event log',
-                  icon: Icons.list_alt,
-                  variant: AppButtonVariant.accent,
-                  onPressed: () =>
-                      Navigator.of(context).pushNamed(AppRoutes.history),
-                ),
-                if (ref.watch(settingsProvider).useDeviceCamera) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  AppButton(
-                    label: 'Switch camera (${session.lensLabel})',
-                    icon: Icons.cameraswitch_outlined,
-                    variant: AppButtonVariant.outlined,
-                    onPressed: () => ref
-                        .read(detectionSessionProvider.notifier)
-                        .switchCamera(),
-                  ),
-                ],
               ],
             ),
           ),
@@ -230,4 +242,10 @@ class DetectionBottomPanel extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _counts(int people, int violations) {
+  final person = people == 1 ? 'person' : 'people';
+  final violation = violations == 1 ? 'violation' : 'violations';
+  return '$people $person · $violations $violation';
 }

@@ -175,7 +175,8 @@ class Store:
                 ),
             )
             self._db.commit()
-            return int(cur.lastrowid)
+            assert cur.lastrowid is not None
+            return cur.lastrowid
 
     def close_event(self, event_id: int, end_time: str) -> None:
         with self._lock:

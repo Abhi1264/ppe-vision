@@ -100,6 +100,9 @@ class DefaultImagePreprocessor implements ImagePreprocessor {
       FrameFormat.bgra8888 => _sampleBgra(frame, x, y),
       FrameFormat.rgba8888 => _sampleRgba(frame, x, y),
       FrameFormat.yuv420 => _sampleYuv(frame, x, y),
+      FrameFormat.jpeg => throw const InvalidFrameException(
+        'JPEG frames are sent to the server as-is.',
+      ),
       FrameFormat.unknown => throw const InvalidFrameException(
         'This camera frame format is not supported.',
       ),

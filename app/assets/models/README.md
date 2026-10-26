@@ -5,5 +5,4 @@
 
 The `.tflite` file is gitignored. Keep it in this folder locally or the model will not load.
 
-The app maps `hardhat` to helmet. Loading and YOLO decoding stay in
-`lib/services/detection/model_detection_io.dart`.
+The live app loads this file on the phone and on desktop. It does not call the Python server.

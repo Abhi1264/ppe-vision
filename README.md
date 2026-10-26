@@ -1,30 +1,23 @@
 # PPE Vision
 
-Detects people with YOLO11n (COCO) and hardhats and vests with `ml/best.pt` (YOLO11s). A violation event is one tracked person missing a required item for N frames in a row. The Flutter app reads those events from a local server.
+The phone and desktop apps run the camera and the YOLO11s TFLite model on the device. A missing hardhat or vest becomes an event after it stays missing for N frames. Events stay on the device.
+
+`ml/` and `server/` are the training and eval tools. The app does not call them.
 
 Ultralytics is AGPL-3.0.
 
 ## Run
 
 ```bash
-python3 -m venv server/.venv
-server/.venv/bin/pip install -r server/requirements.txt
-make test-server
-make serve
-```
-
-In another terminal:
-
-```bash
 cd app
 flutter pub get
 flutter test
-flutter run -d macos
+flutter run
 ```
 
-The app expects `http://127.0.0.1:8000`. Change it in Settings. With "Use this device camera" off, the server opens webcam `0`. Turn that setting on to send this device's camera, then use Switch camera for front or back.
+Put `ppe_model.tflite` in `app/assets/models/`. It is the float32 export of `ml/best.pt` and is gitignored. Switch camera flips front and back.
 
-`make eval` writes `ml/eval_out/report.md`.
+`make eval` writes `ml/eval_out/report.md`. That path still uses the PyTorch weights.
 
 `server/.venv/bin/python ml/plot_graphs.py` writes `ml/training_log.png` from `ml/results.csv`.
 
@@ -32,7 +25,7 @@ The app expects `http://127.0.0.1:8000`. Change it in Settings. With "Use this d
 
 `ml/best.pt` is YOLO11s, classes `hardhat`, `vest`, `person`, input 640. The checkpoint records a Kaggle run at `/kaggle/working/runs/detect/train3` from `yolo11s.pt` and `hardhat.yaml`. The labeled images and the split are not in this repo. `ml/results.csv` is that training log, not a test result.
 
-The person class in `best.pt` does not emit boxes. The server uses `ml/yolo11n.pt` (downloaded on first start) for the person track and `best.pt` for hardhat and vest.
+The person class in `best.pt` does not emit boxes. The on-device app estimates a person from a hardhat or a vest. Someone wearing neither is not seen. The eval server can still use `ml/yolo11n.pt` for a real person box. That model is not in the app.
 
 ## Results
 
@@ -50,8 +43,6 @@ Hardware in the same file: Darwin 27.0.0, Apple M3, 8 GB. The 20 images are the 
 ## Limitations
 
 - No labeled test split, so no mAP, no leakage check, and no event precision.
-- Track ids are not names. They reset when a capture session restarts.
-- One capture job at a time. Posting frames while a job is running returns 409.
-- The server has no authentication.
-- On-device TFLite files are still in `app/lib/services/detection/` and are not used by the live screen.
+- Track ids are not in the app. The on-device model does not track a person across frames.
+- Someone with neither a hardhat nor a vest is not detected.
 - `ml/images/` is 198 unlabeled stock photos. `test_model.py` only draws boxes on them.

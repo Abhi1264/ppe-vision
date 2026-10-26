@@ -5,7 +5,7 @@ class AppConstants {
       'Live computer vision for site PPE compliance. '
       'The camera feed is analyzed for people, helmets, and safety vests, '
       'then each person is scored as compliant or in violation.';
-  static const String aboutBlurb = 'Computer Vision Demo';
+  static const String aboutBlurb = 'On-device detection';
 }
 
 abstract final class AppStrings {
@@ -15,7 +15,7 @@ abstract final class AppStrings {
   static const settings = 'Settings';
   static const capture = 'Capture';
   static const back = 'Back';
-  static const modelModeBadge = 'Server detection · hardhat and vest';
+  static const modelModeBadge = 'On this device · camera and model';
   static const captureSaved = 'Saved to detection history';
   static const demoPreview = 'DEMO PREVIEW';
   static const detectionActive = 'Detection active';
@@ -39,7 +39,7 @@ abstract final class AppStrings {
   static const enableOverlay = 'Enable detection overlay';
   static const showConfidence = 'Show confidence scores';
   static const targetInferenceFps = 'Target inference FPS';
-  static const showFps = 'Show FPS';
+  static const showFps = 'Show detect rate';
   static const showInferenceTime = 'Show inference time';
   static const people = 'People';
   static const helmets = 'Helmets';

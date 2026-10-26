@@ -6,9 +6,13 @@ hardhat nor vest would never be seen. yolo11n supplies the person track.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from server.events import assign_ppe
+
+# ponytail: one thread per model. If MPS serializes them and latency goes up, call them in sequence again.
+_pool = ThreadPoolExecutor(max_workers=2)
 
 ROOT = Path(__file__).resolve().parents[1]
 PPE_WEIGHTS = ROOT / "ml" / "best.pt"
@@ -16,7 +20,7 @@ PERSON_WEIGHTS = ROOT / "ml" / "yolo11n.pt"
 
 
 def load_models():
-    from ultralytics import YOLO
+    from ultralytics.models import YOLO
 
     if not PPE_WEIGHTS.is_file():
         raise FileNotFoundError(f"Missing {PPE_WEIGHTS}")
@@ -44,8 +48,8 @@ def _rows(result, wanted: set[str] | None):
     return rows
 
 
-def infer(person_model, ppe_model, frame, conf: float) -> list[dict]:
-    person_result = person_model.track(
+def _track_people(person_model, frame, conf: float):
+    return person_model.track(
         frame,
         persist=True,
         classes=[0],
@@ -53,12 +57,22 @@ def infer(person_model, ppe_model, frame, conf: float) -> list[dict]:
         conf=conf,
         verbose=False,
     )[0]
-    ppe_result = ppe_model.predict(
+
+
+def _predict_ppe(ppe_model, frame, conf: float):
+    return ppe_model.predict(
         frame,
         classes=[0, 1],
         conf=conf,
         verbose=False,
     )[0]
+
+
+def infer(person_model, ppe_model, frame, conf: float) -> list[dict]:
+    person_job = _pool.submit(_track_people, person_model, frame, conf)
+    ppe_job = _pool.submit(_predict_ppe, ppe_model, frame, conf)
+    person_result = person_job.result()
+    ppe_result = ppe_job.result()
     height, width = frame.shape[:2]
     people = []
     for label, xyxy, score, track_id in _rows(person_result, {"person"}):
@@ -91,13 +105,29 @@ def infer(person_model, ppe_model, frame, conf: float) -> list[dict]:
     return tracks
 
 
-def decode_and_infer(models, raw: bytes, conf: float):
+def orient(frame, rotation: int, mirrored: bool):
+    import cv2
+
+    code = {
+        90: cv2.ROTATE_90_CLOCKWISE,
+        180: cv2.ROTATE_180,
+        270: cv2.ROTATE_90_COUNTERCLOCKWISE,
+    }.get(rotation % 360)
+    if code is not None:
+        frame = cv2.rotate(frame, code)
+    if mirrored:
+        frame = cv2.flip(frame, 1)
+    return frame
+
+
+def decode_and_infer(models, raw: bytes, conf: float, rotation: int = 0, mirrored: bool = False):
     import cv2
     import numpy as np
 
     frame = cv2.imdecode(np.frombuffer(raw, dtype=np.uint8), cv2.IMREAD_COLOR)
     if frame is None:
         raise ValueError("Could not decode image")
+    frame = orient(frame, rotation, mirrored)
     return infer(models[0], models[1], frame, conf), frame
 
 

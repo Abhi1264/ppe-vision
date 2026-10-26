@@ -200,12 +200,16 @@ class FlutterCameraService implements CameraService {
     final raw = image.format.raw;
     final format = switch (image.format.group) {
       ImageFormatGroup.yuv420 => FrameFormat.yuv420,
+      ImageFormatGroup.jpeg => FrameFormat.jpeg,
       ImageFormatGroup.bgra8888 =>
         raw is String && raw.toUpperCase() == 'RGBA'
             ? FrameFormat.rgba8888
             : FrameFormat.bgra8888,
       _ => FrameFormat.unknown,
     };
+    final jpeg = format == FrameFormat.jpeg && image.planes.isNotEmpty
+        ? Uint8List.fromList(image.planes.first.bytes)
+        : null;
 
     return FrameData(
       width: image.width,
@@ -215,6 +219,7 @@ class FlutterCameraService implements CameraService {
       format: format,
       mirrored:
           controller.description.lensDirection == CameraLensDirection.front,
+      jpegBytes: jpeg,
       planes: [
         for (final plane in image.planes)
           FramePlane(

@@ -1,5 +1,5 @@
 name: ppe_vision
-description: Helmet and safety vest detection demo for real-time PPE compliance monitoring.
+description: On-device hardhat and safety vest detection.
 publish_to: "none"
 version: 1.0.0+1
 
@@ -13,7 +13,6 @@ dependencies:
   camera_desktop: 1.2.1
   flutter_riverpod: 3.4.3
   shared_preferences: 2.5.5
-  http: 1.5.0
   tflite_flutter: 0.12.1
 
 dev_dependencies:

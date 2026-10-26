@@ -13,13 +13,11 @@ void main() {
     expect(find.text('PPE Vision'), findsWidgets);
     expect(find.text('Helmet & Safety Vest Detection'), findsOneWidget);
     expect(find.text('Start Detection'), findsOneWidget);
-    expect(find.text('Detection History'), findsOneWidget);
+    expect(find.text('Event log'), findsOneWidget);
     expect(find.text('Settings'), findsOneWidget);
   });
 
-  testWidgets('detection screen opens from home', (
-    tester,
-  ) async {
+  testWidgets('detection screen opens from home', (tester) async {
     tester.view.physicalSize = const Size(1080, 2340);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.resetPhysicalSize);
@@ -32,7 +30,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pump(const Duration(milliseconds: 250));
 
-    expect(find.textContaining('People Detected'), findsOneWidget);
-    expect(find.text('Event log'), findsOneWidget);
+    expect(find.textContaining('people'), findsOneWidget);
+    expect(find.byTooltip('Event log'), findsOneWidget);
   });
 }

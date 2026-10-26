@@ -163,6 +163,8 @@ def create_app(detect=None, db_path: Path | None = None, snap_dir: Path | None =
         encoding: str = Form("jpeg"),
         width: int = Form(0),
         height: int = Form(0),
+        rotation: int = Form(0),
+        mirrored: int = Form(0),
     ):
         if hub.thread is not None and hub.thread.is_alive():
             raise HTTPException(409, "Stop the capture job before posting frames")
@@ -174,7 +176,9 @@ def create_app(detect=None, db_path: Path | None = None, snap_dir: Path | None =
         if not raw:
             raise HTTPException(400, "Empty image")
         try:
-            tracks, frame = _frame_from_upload(app, raw, conf, encoding, width, height)
+            tracks, frame = _frame_from_upload(
+                app, raw, conf, encoding, width, height, rotation, bool(mirrored)
+            )
         except ValueError as error:
             raise HTTPException(400, str(error)) from error
         hub.step(camera_id, names, confirm, tracks, frame)
@@ -322,7 +326,9 @@ def create_app(detect=None, db_path: Path | None = None, snap_dir: Path | None =
     return app
 
 
-def _frame_from_upload(app, raw: bytes, conf: float, encoding: str, width: int, height: int):
+def _frame_from_upload(
+    app, raw: bytes, conf: float, encoding: str, width: int, height: int, rotation: int = 0, mirrored: bool = False
+):
     if app.state.detect is not None:
         return app.state.detect(raw, conf)
     if app.state.models is None:
@@ -340,7 +346,7 @@ def _frame_from_upload(app, raw: bytes, conf: float, encoding: str, width: int, 
         return infer(app.state.models[0], app.state.models[1], frame, conf), frame
     from server.detect import decode_and_infer
 
-    return decode_and_infer(app.state.models, raw, conf)
+    return decode_and_infer(app.state.models, raw, conf, rotation, mirrored)
 
 
 def _jpeg(frame) -> bytes:

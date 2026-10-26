@@ -40,11 +40,14 @@ class DebounceTest(unittest.TestCase):
         deb.step([_obs()], "t0", self.store, "cam")
         deb.step([_obs(present={"hardhat"})], "t1", self.store, "cam")
         event = self.store.get_event(1)
+        assert event is not None
         self.assertEqual(event["end_time"], "t1")
         deb.step([_obs()], "t2", self.store, "cam")
         deb.step([], "t3", self.store, "cam")
         deb.step([], "t4", self.store, "cam")
-        self.assertEqual(self.store.get_event(2)["end_time"], "t4")
+        event = self.store.get_event(2)
+        assert event is not None
+        self.assertEqual(event["end_time"], "t4")
 
     def test_assign_ppe_uses_smaller_person(self):
         people = [
@@ -59,6 +62,20 @@ class DebounceTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse_required("helmet")
         self.assertEqual(parse_required("vest,hardhat"), ("hardhat", "vest"))
+
+
+class OrientTest(unittest.TestCase):
+    def test_quarter_turn_swaps_axes(self):
+        import numpy as np
+
+        from server.detect import orient
+
+        frame = np.zeros((2, 4, 3), dtype=np.uint8)
+        frame[0, 0] = (9, 8, 7)
+        turned = orient(frame, 90, False)
+        self.assertEqual(turned.shape[:2], (4, 2))
+        flipped = orient(frame, 0, True)
+        self.assertEqual(tuple(flipped[0, -1]), (9, 8, 7))
 
 
 if __name__ == "__main__":
