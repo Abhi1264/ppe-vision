@@ -1,0 +1,6 @@
+# Versions from the Windows venv that was stored next to these scripts.
+# Direct imports only. ultralytics pulls torch.
+ultralytics==8.4.39
+opencv-python==4.13.0.92
+pandas==3.0.2
+matplotlib==3.10.8

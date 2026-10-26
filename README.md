@@ -1,144 +1,69 @@
 # PPE Vision
 
-[![CI](https://github.com/Abhi1264/ppe-vision/actions/workflows/ci.yml/badge.svg)](https://github.com/Abhi1264/ppe-vision/actions/workflows/ci.yml)
+Detects hardhats and safety vests in a camera frame and scores each detected person as compliant or not.
 
-Real-time **helmet and safety vest** monitoring for site PPE compliance. Camera pipeline, detection overlay, PPE association, statistics, history, and settings are in place. The YOLO11 detector is bundled as `assets/models/ppe_model.tflite` and runs on Android, iOS, macOS, Windows, and Linux.
+`app/` is a Flutter client. It runs YOLO11s on device from `app/assets/models/ppe_model.tflite`. `ml/best.pt` is the checkpoint that export comes from. There is no inference server in this repository.
 
-## Project overview
+Ultralytics, which loads `ml/best.pt`, is AGPL-3.0.
 
-PPE Vision watches a live camera feed, runs object detection, then decides for every detected person:
+## Run the app
 
-- whether they are wearing a helmet
-- whether they are wearing a safety vest
-- whether they are PPE compliant
-
-Detected classes (current and future):
-
-- `person`
-- `helmet`
-- `vest`
-
-## Architecture
-
-The UI never talks to YOLO or TFLite. Everything downstream of detection consumes a generic `List<Detection>` with **normalized** bounding boxes (`0.0`–`1.0`).
-
-```text
-Live Camera
-    ↓
-FrameData            (camera-agnostic frame payload)
-    ↓
-ImagePreprocessor    (YUV/BGRA → RGB, rotate, letterbox)
-    ↓
-DetectionProvider    (ModelDetectionProvider)
-    ↓
-List<Detection>
-    ↓
-PPEComplianceAnalyzer
-    ↓
-PersonDetection + ComplianceResult + statistics
-    ↓
-Camera preview, overlay, status cards, history
-```
-
-### Where each concern lives
-
-| Concern | Location |
-| --- | --- |
-| Camera permission, stream, lifecycle | `lib/services/camera/camera_service.dart` |
-| Detection interface | `lib/services/detection/detection_provider.dart` |
-| Bundled YOLO11 backend | `lib/services/detection/model_detection_io.dart` |
-| Frame preprocessing contract | `lib/services/image/image_preprocessor.dart` |
-| Helmet/vest ↔ person association | `lib/services/compliance/ppe_compliance_analyzer.dart` |
-| IoU / containment | `lib/core/utils/bounding_box_utils.dart` |
-| Session, FPS, throttling | `lib/providers/detection_provider.dart` |
-| Overlay painter | `lib/widgets/detection_overlay.dart` |
-
-Swapping in a real model should not require rewriting camera UI, overlays, compliance cards, statistics, history, navigation, settings, PPE logic, or Riverpod session state.
-
-## Running
-
-Requires the Flutter SDK (this project was developed with Flutter 3.47 / Dart 3.13).
+CI uses Flutter 3.47.1. This tree was last run with Dart 3.13.
 
 ```bash
+cd app
 flutter pub get
-flutter devices
-```
-
-| Platform | Run | Camera |
-| --- | --- | --- |
-| Android / iOS | `flutter run` | Live preview and frame stream from the first working camera (back, then external, then front). Falls back to the demo preview if init fails (simulators, missing permission). |
-| Web | `flutter run -d chrome` | Live preview when camera permission is granted. The TFLite model does not run in the browser. Serve over HTTPS or `localhost`. |
-| macOS | `flutter run -d macos` | Live preview and frame stream from any detected webcam (built-in or USB). Grant camera permission when prompted. |
-| Windows | `flutter run -d windows` | Live preview and the bundled model. Frame streaming depends on the camera plugin; inference uses `blobs/libtensorflowlite_c-win.dll`. |
-| Linux | `flutter run -d linux` | Live preview and frame stream from any detected V4L2 webcam. Requires GStreamer (`libgstreamer1.0-dev`, `libgstreamer-plugins-base1.0-dev`, `gstreamer1.0-plugins-good` on Debian/Ubuntu). |
-
-```bash
-flutter run                 # default device (usually a connected phone)
-flutter run -d chrome
-flutter run -d macos
-flutter run -d windows
-flutter run -d linux
-flutter build web
-```
-
-Portrait orientation is locked on mobile. Grant camera permission when prompted.
-
-On any platform where the camera cannot start, the detection screen uses `FallbackCameraBackground`.
-
-## Settings
-
-Stored in memory for this phase (no database):
-
-- Confidence threshold
-- Overlay and confidence labels
-- Target inference FPS
-- FPS and inference-time indicators
-
-## Capture and history
-
-**Capture** on the detection screen snapshots the current counts into detection history. Captures are stored on the device and restored the next time the app opens. Image persistence is intentionally omitted.
-
-## Bundled model
-
-`helmet-vest-detection/best.pt` is a YOLO11s detector (`hardhat`, `vest`, `person`, 640×640). The app loads the float32 TFLite export at `assets/models/ppe_model.tflite`. `hardhat` is shown and scored as a helmet. The `person` channel in the weights stays near zero, so a worker box is estimated from each helmet (or from a vest when no helmet covers it). Desktop inference libraries live in `blobs/`.
-
-```bash
-yolo export model=helemt-vest-detection/best.pt format=tflite imgsz=640
-```
-
-Copy the float32 `.tflite` to `assets/models/ppe_model.tflite`.
-
-The rest of the app filters by the confidence slider, associates PPE with people, and renders overlays from `Detection`.
-
-Expected output shape:
-
-```dart
-Detection(
-  classType: DetectionClass.person,
-  label: 'person',
-  confidence: 0.94,
-  x1: 0.12,
-  y1: 0.08,
-  x2: 0.61,
-  y2: 0.91,
-)
-```
-
-## Tests
-
-```bash
-flutter analyze
+flutter analyze --fatal-infos
 flutter test
+flutter run
 ```
 
-Unit tests cover IoU, containment, PPE association, compliance, and statistics, including the three-person mock scene.
+`flutter run -d macos`, `-d chrome`, `-d windows`, and `-d linux` match the same project. On Linux the camera plugin needs GStreamer (`libgstreamer1.0-dev`, `libgstreamer-plugins-base1.0-dev`, `gstreamer1.0-plugins-good`).
 
-## CI
+The `.tflite` file and the desktop runtime libraries in `app/blobs/` are not in git. Export the float32 model and copy it into place:
 
-GitHub Actions runs the same gate on `main`, pull requests, and manual dispatch:
+```bash
+yolo export model=ml/best.pt format=tflite imgsz=640
+```
 
-1. `flutter pub get`
-2. `flutter analyze --fatal-infos`
-3. `flutter test --coverage`
+Destination: `app/assets/models/ppe_model.tflite`. Without that file the detector does not load. The browser target shows the camera preview and does not run TFLite.
 
-There is no store deployment. Builds are still produced locally with `flutter run`.
+The camera list is back, then external, then front. The app does not switch cameras after start. If the camera cannot start, the detection screen sends a synthetic frame through the same model and labels the preview as a demo.
+
+## Training files
+
+`ml/best.pt` is YOLO11s, classes `hardhat`, `vest`, `person`, input 640. The checkpoint records a Kaggle run at `/kaggle/working/runs/detect/train3`, started from `yolo11s.pt` with data file `hardhat.yaml`. The labeled images and the split are not in this repo.
+
+`ml/results.csv` is the 25-epoch log from that run. It is not a held-out test result.
+
+```bash
+cd ml
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python plot_graphs.py
+.venv/bin/python test_model.py
+```
+
+`requirements.txt` pins the packages these scripts import, at the versions from the Windows venv that was stored with them. That install has not been re-run on this Mac.
+
+`test_model.py` predicts on `ml/images/` (198 unlabeled stock photos). Those files are gitignored. They are not a test set.
+
+`intelligence.py` opens a webcam with `cv2.CAP_DSHOW` and calls `winsound`. It does not run on macOS. It looks for the label `helmet`. The checkpoint class name is `hardhat`.
+
+## Results
+
+No held-out metrics have been computed from this repo. Reproduce nothing from `ml/results.csv` as test mAP: the images and labels for that log are absent, so the numbers cannot be regenerated here.
+
+## Limitations
+
+- A person box is estimated from a hardhat, or from a vest when no hardhat covers it (`app/lib/services/compliance/ppe_compliance_analyzer.dart`). Someone wearing neither is not detected, so a missing-hardhat violation cannot be logged from this model alone.
+- History stores a count snapshot when capture is tapped. It does not store an image, a track id, or a violation interval. Settings last for the session only.
+- No tracker, no event database, and no server API.
+- The original labeled dataset is not here. A separate person detector has not been added. Both are undecided.
+
+## Layout
+
+- `app/` Flutter client and on-device TFLite decoder
+- `ml/` checkpoint, training log, and the three scripts above
+
+A `server/` package is not in this change. Add it when the inference API exists.
