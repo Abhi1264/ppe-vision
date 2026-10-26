@@ -1,6 +1,6 @@
 # Model assets
 
-`ppe_model.tflite` is the float32 export of `helemt-vest-detection/best.pt`
+`ppe_model.tflite` is the float32 export of `ml/best.pt`
 (YOLO11s, 640×640). Class order: `hardhat`, `vest`, `person`.
 
 The `.tflite` file is gitignored. Keep it in this folder locally or the model will not load.

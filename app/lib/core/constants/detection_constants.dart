@@ -1,7 +1,7 @@
 class DetectionConstants {
   static const String modelAsset = 'assets/models/ppe_model.tflite';
 
-  /// Class order baked into helemt-vest-detection/best.pt (YOLO11s, imgsz 640).
+  /// Class order baked into ml/best.pt (YOLO11s, imgsz 640).
   static const List<String> modelLabels = ['hardhat', 'vest', 'person'];
 
   static const double nmsIouThreshold = 0.7;
