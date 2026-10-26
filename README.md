@@ -15,11 +15,39 @@ flutter test
 flutter run
 ```
 
-Put `ppe_model.tflite` in `app/assets/models/`. It is the float32 export of `ml/best.pt` and is gitignored. Switch camera flips front and back.
+`app/assets/models/ppe_model.tflite` is the float32 export of `ml/best.pt`. `app/blobs/` holds the TensorFlow Lite runtime that Linux and Windows builds install; macOS copies it from the `tflite_flutter` package. Switch camera flips front and back.
 
 `make eval` writes `ml/eval_out/report.md`. That path still uses the PyTorch weights.
 
 `server/.venv/bin/python ml/plot_graphs.py` writes `ml/training_log.png` from `ml/results.csv`.
+
+## Releases
+
+Pushing a `vX.Y.Z` tag runs `.github/workflows/release.yml`, which builds every platform and attaches the files to a GitHub release. The tag sets the app version.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+| File | Install |
+|------|---------|
+| `-android.apk` | Allow installs from your browser or file manager when Android asks. |
+| `-macos.zip` | Unzip and open `PPE Vision.app`. It is not notarized, so the first launch needs System Settings > Privacy & Security > Open Anyway. |
+| `-windows-x64.zip` | Unzip and run `ppe_vision.exe`. SmartScreen asks once because the app is not code-signed. |
+| `-linux-x64.tar.gz` | Extract and run `bundle/ppe_vision`. Needs GTK 3 and GStreamer with `gstreamer1.0-plugins-good`. |
+
+iOS has no release file. An iPhone only installs through the App Store or TestFlight.
+
+The Android build refuses to publish without a signing key, so every release can update the last one. Create the key once, keep `upload.jks` out of the repo, and back it up:
+
+```bash
+keytool -genkeypair -v -keystore upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
+base64 -i upload.jks | gh secret set ANDROID_KEYSTORE_BASE64
+gh secret set ANDROID_STORE_PASSWORD
+gh secret set ANDROID_KEY_ALIAS --body upload
+gh secret set ANDROID_KEY_PASSWORD
+```
 
 ## Model
 

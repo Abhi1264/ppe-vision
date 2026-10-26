@@ -418,6 +418,7 @@
 		};
 		B7E4A91C0D2F4A6B8C1E3F50 /* Copy TFLite dylib */ = {
 			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
 			files = (
 			);
@@ -428,7 +429,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "DYLIB=\"${SRCROOT}/Flutter/ephemeral/.symlinks/plugins/tflite_flutter/macos/libtensorflowlite_c-mac.dylib\"\nif [ ! -f \"$DYLIB\" ]; then\n  echo \"warning: TFLite dylib missing at $DYLIB\"\n  exit 0\nfi\nDEST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\nmkdir -p \"$DEST\"\ncp \"$DYLIB\" \"$DEST/libtensorflowlite_c-mac.dylib\"\n";
+			shellScript = "DYLIB=\"${SRCROOT}/Flutter/ephemeral/.symlinks/plugins/tflite_flutter/macos/libtensorflowlite_c-mac.dylib\"\nif [ ! -f \"$DYLIB\" ]; then\n  echo \"error: TFLite dylib missing at $DYLIB\"\n  exit 1\nfi\nDEST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\nmkdir -p \"$DEST\"\ncp \"$DYLIB\" \"$DEST/libtensorflowlite_c-mac.dylib\"\n";
 		};
 		D750EEEFB2717FC87BD4207C /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;

@@ -27,7 +27,7 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 **/build/
-/coverage/
+coverage/
 
 # Symbolication / obfuscation
 app.*.symbols
@@ -41,12 +41,7 @@ app.*.map.json
 .widget_preview/
 .cursor/
 
-# Local model runtime. Weights in ml/best.pt are tracked.
-app/assets/models/*.tflite
-app/blobs/
-
 # Training environment and unlabeled stock images. Not a dataset.
-ml/venv/
 ml/images/
 ml/datsttt/
 *.textClipping
