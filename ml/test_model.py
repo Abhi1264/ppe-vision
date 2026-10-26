@@ -1,14 +1,16 @@
+from pathlib import Path
+
 from ultralytics import YOLO
 
-# Load trained model
-model = YOLO("best.pt")
-
-# Predict on image or folder
-results = model.predict(
-    source="images",   # folder containing test images
-    save=True,         # saves annotated images
-    show=True,         # opens result window
-    conf=0.25          # confidence threshold
+root = Path(__file__).resolve().parent
+model = YOLO(root / "best.pt")
+model.predict(
+    source=root / "images",
+    save=True,
+    show=False,
+    conf=0.25,
+    project=root / "runs",
+    name="predict",
+    exist_ok=True,
 )
-
 print("Done")

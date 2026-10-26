@@ -53,3 +53,8 @@ ml/datsttt/
 __pycache__/
 .venv/
 venv/
+ml/training_log.png
+ml/runs/
+ml/eval_out/
+ml/yolo11n.pt
+server/data/
