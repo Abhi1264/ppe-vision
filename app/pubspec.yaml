@@ -16,6 +16,7 @@ dependencies:
   tflite_flutter: 0.12.1
 
 dev_dependencies:
+  ffi: 2.2.0
   flutter_test:
     sdk: flutter
   flutter_lints: 6.0.0

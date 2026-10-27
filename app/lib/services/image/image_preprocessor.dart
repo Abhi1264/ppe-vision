@@ -20,52 +20,61 @@ class DefaultImagePreprocessor implements ImagePreprocessor {
 
   @override
   Future<ProcessedImage> process(FrameData frame) {
-    return Future<ProcessedImage>.value(_process(frame));
+    return Future<ProcessedImage>.value(processSync(frame));
   }
 
-  ProcessedImage _process(FrameData frame) {
+  /// Same letterbox as Ultralytics: bilinear resize, gray 114 border, integer pads.
+  ProcessedImage processSync(FrameData frame) {
     if (!frame.hasPixelData || frame.width <= 0 || frame.height <= 0) {
       throw const InvalidFrameException();
     }
     final upright = uprightFrameSize(frame);
-    if (upright.width <= 0 || upright.height <= 0) {
-      throw const InvalidFrameException();
+    final w = upright.width;
+    final h = upright.height;
+    if (w <= 0 || h <= 0) throw const InvalidFrameException();
+
+    final source = Uint8List(w * h * 3);
+    for (var uy = 0; uy < h; uy++) {
+      for (var ux = 0; ux < w; ux++) {
+        final sensor = _sensorPoint(frame, ux, uy, w);
+        final pixel = _sample(frame, sensor.$1, sensor.$2);
+        final i = (uy * w + ux) * 3;
+        source[i] = pixel.$1;
+        source[i + 1] = pixel.$2;
+        source[i + 2] = pixel.$3;
+      }
     }
 
-    final scale = math.min(
-      targetWidth / upright.width,
-      targetHeight / upright.height,
-    );
-    if (scale <= 0) throw const InvalidFrameException();
-
-    final resizedW = (upright.width * scale).round();
-    final resizedH = (upright.height * scale).round();
-    final padX = (targetWidth - resizedW) / 2;
-    final padY = (targetHeight - resizedH) / 2;
+    final scale = math.min(targetWidth / w, targetHeight / h);
+    final resizedW = math.max(1, (w * scale).round());
+    final resizedH = math.max(1, (h * scale).round());
+    final left = ((targetWidth - resizedW) / 2 - 0.1).round();
+    final top = ((targetHeight - resizedH) / 2 - 0.1).round();
+    final stepX = w / resizedW;
+    final stepY = h / resizedH;
 
     final rgb = Uint8List(targetWidth * targetHeight * 3);
-    // YOLO letterbox pad.
     rgb.fillRange(0, rgb.length, 114);
-
-    final x0 = padX.floor().clamp(0, targetWidth);
-    final y0 = padY.floor().clamp(0, targetHeight);
-    final x1 = (padX + resizedW).ceil().clamp(0, targetWidth);
-    final y1 = (padY + resizedH).ceil().clamp(0, targetHeight);
-
-    for (var my = y0; my < y1; my++) {
-      for (var mx = x0; mx < x1; mx++) {
-        // ponytail: nearest-neighbor sample; bilinear if box edges look soft
-        final ux = ((mx - padX) / scale).round();
-        final uy = ((my - padY) / scale).round();
-        if (ux < 0 || uy < 0 || ux >= upright.width || uy >= upright.height) {
-          continue;
+    for (var row = 0; row < resizedH; row++) {
+      final sy = ((row + 0.5) * stepY - 0.5).clamp(0.0, h - 1.0);
+      final y0 = sy.floor();
+      final y1 = math.min(y0 + 1, h - 1);
+      final fy = sy - y0;
+      for (var col = 0; col < resizedW; col++) {
+        final sx = ((col + 0.5) * stepX - 0.5).clamp(0.0, w - 1.0);
+        final x0 = sx.floor();
+        final x1 = math.min(x0 + 1, w - 1);
+        final fx = sx - x0;
+        final a = (y0 * w + x0) * 3;
+        final b = (y0 * w + x1) * 3;
+        final c = (y1 * w + x0) * 3;
+        final d = (y1 * w + x1) * 3;
+        final dst = ((top + row) * targetWidth + left + col) * 3;
+        for (var k = 0; k < 3; k++) {
+          final upper = source[a + k] + (source[b + k] - source[a + k]) * fx;
+          final lower = source[c + k] + (source[d + k] - source[c + k]) * fx;
+          rgb[dst + k] = (upper + (lower - upper) * fy).round();
         }
-        final sensor = _sensorPoint(frame, ux, uy, upright.width);
-        final rgbPixel = _sample(frame, sensor.$1, sensor.$2);
-        final dst = (my * targetWidth + mx) * 3;
-        rgb[dst] = rgbPixel.$1;
-        rgb[dst + 1] = rgbPixel.$2;
-        rgb[dst + 2] = rgbPixel.$3;
       }
     }
 
@@ -74,8 +83,8 @@ class DefaultImagePreprocessor implements ImagePreprocessor {
       height: targetHeight,
       rgbBytes: rgb,
       letterboxScale: scale,
-      padX: padX,
-      padY: padY,
+      padX: left.toDouble(),
+      padY: top.toDouble(),
     );
   }
 
@@ -100,10 +109,7 @@ class DefaultImagePreprocessor implements ImagePreprocessor {
       FrameFormat.bgra8888 => _sampleBgra(frame, x, y),
       FrameFormat.rgba8888 => _sampleRgba(frame, x, y),
       FrameFormat.yuv420 => _sampleYuv(frame, x, y),
-      FrameFormat.jpeg => throw const InvalidFrameException(
-        'JPEG frames are sent to the server as-is.',
-      ),
-      FrameFormat.unknown => throw const InvalidFrameException(
+      FrameFormat.jpeg || FrameFormat.unknown => throw const InvalidFrameException(
         'This camera frame format is not supported.',
       ),
     };
@@ -173,13 +179,14 @@ int _at(Uint8List bytes, int index) {
 
 int _clampByte(int value) => value < 0 ? 0 : (value > 255 ? 255 : value);
 
+/// Camera YUV_420_888 is full-range BT.601 (JFIF), not the 16–235 video range.
 (int, int, int) _yuvToRgb(int y, int u, int v) {
-  final c = y - 16;
+  final base = y << 8;
   final d = u - 128;
   final e = v - 128;
   return (
-    _clampByte((298 * c + 409 * e + 128) >> 8),
-    _clampByte((298 * c - 100 * d - 208 * e + 128) >> 8),
-    _clampByte((298 * c + 516 * d + 128) >> 8),
+    _clampByte((base + 359 * e + 128) >> 8),
+    _clampByte((base - 88 * d - 183 * e + 128) >> 8),
+    _clampByte((base + 454 * d + 128) >> 8),
   );
 }

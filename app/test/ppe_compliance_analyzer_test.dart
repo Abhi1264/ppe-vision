@@ -110,26 +110,13 @@ void main() {
     expect(people[1].isCompliant, isFalse);
   });
 
-  test('helmet and vest without a person box still count as one worker', () {
-    final detections = detectionsWithPeople([
+  test('gear with no person box is not a person', () {
+    final people = analyzer.analyze([
       helmet(0.40, 0.15, 0.55, 0.28),
       vest(0.38, 0.40, 0.58, 0.62),
     ]);
-    final people = analyzer.analyze(detections);
 
-    expect(people, hasLength(1));
-    expect(people.single.isCompliant, isTrue);
-  });
-
-  test('vest without a helmet is a violation when the model misses people', () {
-    final people = analyzer.analyze(
-      detectionsWithPeople([vest(0.30, 0.40, 0.60, 0.70)]),
-    );
-
-    expect(people, hasLength(1));
-    expect(people.single.hasHelmet, isFalse);
-    expect(people.single.hasVest, isTrue);
-    expect(people.single.isCompliant, isFalse);
+    expect(people, isEmpty);
   });
 
   test('canonical mock scene has mixed compliance', () {

@@ -1,8 +1,16 @@
 class DetectionConstants {
   static const String modelAsset = 'assets/models/ppe_model.tflite';
+  static const String personModelAsset = 'assets/models/person_model.tflite';
+  static const int modelInputSize = 640;
 
   /// Class order baked into ml/best.pt (YOLO11s, imgsz 640).
   static const List<String> modelLabels = ['hardhat', 'vest', 'person'];
+
+  /// yolo11n.pt is COCO: class 0 is person, the other 79 are ignored.
+  static final List<String> personModelLabels = [
+    'person',
+    for (var i = 1; i < 80; i++) 'coco$i',
+  ];
 
   static const double nmsIouThreshold = 0.7;
 

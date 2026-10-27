@@ -7,8 +7,8 @@ import '../../core/utils/image_utils.dart';
 import '../../models/detection.dart';
 
 /// Decode a YOLO11 detect head: `[1, 4+nc, N]` or `[1, N, 4+nc]`, xywh in
-/// model pixels, class scores already passed through sigmoid (logits are
-/// accepted too).
+/// model pixels or divided by the input size, class scores already passed
+/// through sigmoid (logits are accepted too).
 List<Detection> decodeYoloOutput({
   required Float32List values,
   required List<int> shape,
@@ -42,14 +42,21 @@ List<Detection> decodeYoloOutput({
     throw ArgumentError('YOLO output is shorter than its shape $shape');
   }
 
+  double valueAt(int box, int channel) => values[channelsFirst
+      ? channel * boxCount + box
+      : box * channels + channel];
+
+  // Newer Ultralytics TFLite exports divide xywh by the input size.
+  var largest = 0.0;
+  for (var box = 0; box < boxCount; box++) {
+    largest = math.max(largest, math.max(valueAt(box, 0), valueAt(box, 1)));
+  }
+  final xScale = largest <= 2 ? modelWidth.toDouble() : 1.0;
+  final yScale = largest <= 2 ? modelHeight.toDouble() : 1.0;
+
   final found = <Detection>[];
   for (var box = 0; box < boxCount; box++) {
-    double at(int channel) {
-      final index = channelsFirst
-          ? channel * boxCount + box
-          : box * channels + channel;
-      return values[index];
-    }
+    double at(int channel) => valueAt(box, channel);
 
     var bestClass = 0;
     var bestScore = at(4);
@@ -65,10 +72,10 @@ List<Detection> decodeYoloOutput({
     }
     if (bestScore < confidenceThreshold) continue;
 
-    final cx = at(0);
-    final cy = at(1);
-    final w = at(2);
-    final h = at(3);
+    final cx = at(0) * xScale;
+    final cy = at(1) * yScale;
+    final w = at(2) * xScale;
+    final h = at(3) * yScale;
     if (w <= 0 || h <= 0) continue;
 
     final mapped = _unmap(

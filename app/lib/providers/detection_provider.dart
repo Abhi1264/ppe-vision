@@ -243,7 +243,7 @@ class DetectionSessionNotifier extends Notifier<DetectionSessionState>
       final raw = await _model.detect(frame);
       if (!_isCurrent(generation)) return;
       final kept = [
-        for (final detection in detectionsWithPeople(raw))
+        for (final detection in raw)
           if (detection.confidence >= settings.confidenceThreshold) detection,
       ];
       final people = [

@@ -9,9 +9,8 @@ import '../../core/constants/detection_constants.dart';
 import '../../core/errors/app_exception.dart';
 import '../../models/detection.dart';
 import '../../models/frame_data.dart';
-import '../image/image_preprocessor.dart';
 import 'detection_provider.dart';
-import 'yolo_decode.dart';
+import 'frame_detector.dart';
 
 class ModelDetectionProvider implements DetectionProvider {
   _YoloWorker? _worker;
@@ -24,20 +23,10 @@ class ModelDetectionProvider implements DetectionProvider {
   Future<void> initialize() async {
     if (_ready) return;
 
-    final ByteData data;
+    final ppe = await _asset(DetectionConstants.modelAsset);
+    final person = await _asset(DetectionConstants.personModelAsset);
     try {
-      data = await rootBundle.load(DetectionConstants.modelAsset);
-    } catch (_) {
-      throw const ModelUnavailableException(
-        'Missing ${DetectionConstants.modelAsset}.',
-      );
-    }
-
-    final bytes = Uint8List.fromList(
-      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
-    );
-    try {
-      _worker = await _YoloWorker.start(bytes);
+      _worker = await _YoloWorker.start(ppe, person);
       _ready = true;
     } catch (error) {
       throw ModelInitializationException(
@@ -68,6 +57,17 @@ class ModelDetectionProvider implements DetectionProvider {
   }
 }
 
+Future<Uint8List> _asset(String path) async {
+  try {
+    final data = await rootBundle.load(path);
+    return Uint8List.fromList(
+      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+    );
+  } catch (_) {
+    throw ModelUnavailableException('Missing $path.');
+  }
+}
+
 FrameData _copyFrame(FrameData frame) {
   return FrameData(
     width: frame.width,
@@ -92,8 +92,9 @@ sealed class _WorkerMsg {
 }
 
 class _InitMsg extends _WorkerMsg {
-  _InitMsg(this.model);
-  final Uint8List model;
+  _InitMsg(this.ppe, this.person);
+  final Uint8List ppe;
+  final Uint8List person;
 }
 
 class _DetectMsg extends _WorkerMsg {
@@ -135,7 +136,7 @@ class _YoloWorker {
   late final StreamSubscription<dynamic> _subscription;
   final List<Completer<_WorkerReply>> _waiters = [];
 
-  static Future<_YoloWorker> start(Uint8List model) async {
+  static Future<_YoloWorker> start(Uint8List ppe, Uint8List person) async {
     final fromWorker = ReceivePort();
     final isolate = await Isolate.spawn(yoloWorkerMain, fromWorker.sendPort);
     final handshake = Completer<SendPort>();
@@ -149,7 +150,7 @@ class _YoloWorker {
       worker._onReply(message);
     });
     worker._toWorker = await handshake.future;
-    final reply = await worker._send(_InitMsg(model));
+    final reply = await worker._send(_InitMsg(ppe, person));
     if (reply is _ReadyReply) return worker;
     await worker.stop();
     throw ModelInitializationException(
@@ -212,111 +213,72 @@ Future<void> yoloWorkerMain(SendPort toMain) async {
   final inbox = ReceivePort();
   toMain.send(inbox.sendPort);
 
-  Interpreter? interpreter;
-  var inputIsNchw = false;
-  var inputWidth = 0;
-  var inputHeight = 0;
-  var outputIndex = 0;
-  final labels = DetectionConstants.modelLabels;
+  final interpreters = <Interpreter>[];
+  RunModel? ppe;
+  RunModel? person;
 
   await for (final Object? message in inbox) {
     if (message is _StopMsg) {
-      interpreter?.close();
+      for (final interpreter in interpreters) {
+        interpreter.close();
+      }
       toMain.send(const _StoppedReply());
       break;
     }
     if (message is _InitMsg) {
       try {
-        final options = InterpreterOptions()..threads = 2;
-        interpreter = Interpreter.fromBuffer(message.model, options: options);
-        interpreter.allocateTensors();
-        final input = interpreter.getInputTensor(0);
-        if (input.type != TensorType.float32) {
-          toMain.send(
-            _FailReply('Expected a float32 model, got ${input.type}.'),
-          );
-          continue;
-        }
-        final shape = input.shape;
-        inputIsNchw = shape.length == 4 && shape[1] == 3;
-        final inputIsNhwc = shape.length == 4 && shape[3] == 3;
-        if (!inputIsNchw && !inputIsNhwc) {
-          toMain.send(_FailReply('Unexpected model input shape $shape.'));
-          continue;
-        }
-        inputHeight = inputIsNchw ? shape[2] : shape[1];
-        inputWidth = inputIsNchw ? shape[3] : shape[2];
-        outputIndex = _detectionOutputIndex(interpreter, 4 + labels.length);
+        ppe = _runner(_interpreter(message.ppe, interpreters));
+        person = _runner(_interpreter(message.person, interpreters));
         toMain.send(const _ReadyReply());
       } catch (error) {
         toMain.send(_FailReply('$error'));
       }
       continue;
     }
-    if (message is! _DetectMsg || interpreter == null) {
+    final runPpe = ppe;
+    final runPerson = person;
+    if (message is! _DetectMsg || runPpe == null || runPerson == null) {
       toMain.send(_FailReply('Model is not initialized.'));
       continue;
     }
     try {
-      final image = await DefaultImagePreprocessor(
-        targetWidth: inputWidth,
-        targetHeight: inputHeight,
-      ).process(message.frame);
-      final input = _inputTensor(image.rgbBytes, image.width, image.height, inputIsNchw);
-      interpreter.getInputTensor(0).data = input.buffer.asUint8List(
-        input.offsetInBytes,
-        input.lengthInBytes,
+      toMain.send(
+        _DetectionsReply(detectFrame(message.frame, ppe: runPpe, person: runPerson)),
       );
-      interpreter.invoke();
-      final output = interpreter.getOutputTensor(outputIndex);
-      final raw = Uint8List.fromList(output.data);
-      final upright = uprightFrameSize(message.frame);
-      final detections = decodeYoloOutput(
-        values: raw.buffer.asFloat32List(),
-        shape: output.shape,
-        modelWidth: image.width,
-        modelHeight: image.height,
-        padX: image.padX,
-        padY: image.padY,
-        letterboxScale: image.letterboxScale,
-        uprightWidth: upright.width,
-        uprightHeight: upright.height,
-      );
-      toMain.send(_DetectionsReply(detections));
     } catch (error) {
       toMain.send(_FailReply('$error'));
     }
   }
 }
 
-int _detectionOutputIndex(Interpreter interpreter, int channels) {
-  final tensors = interpreter.getOutputTensors();
-  for (var i = 0; i < tensors.length; i++) {
-    final shape = tensors[i].shape;
-    if (shape.length == 3 && (shape[1] == channels || shape[2] == channels)) {
-      return i;
-    }
+Interpreter _interpreter(Uint8List model, List<Interpreter> opened) {
+  final interpreter = Interpreter.fromBuffer(
+    model,
+    options: InterpreterOptions()..threads = 2,
+  );
+  opened.add(interpreter);
+  interpreter.allocateTensors();
+  final input = interpreter.getInputTensor(0);
+  const size = DetectionConstants.modelInputSize;
+  if (input.type != TensorType.float32 || input.shape.join(',') != '1,$size,$size,3') {
+    throw StateError(
+      'Expected a float32 [1, $size, $size, 3] input, got ${input.type} ${input.shape}.',
+    );
   }
-  return 0;
+  return interpreter;
 }
 
-Float32List _inputTensor(Uint8List rgb, int width, int height, bool nchw) {
-  final floats = Float32List(width * height * 3);
-  if (!nchw) {
-    for (var i = 0; i < rgb.length; i++) {
-      floats[i] = rgb[i] / 255.0;
-    }
-    return floats;
-  }
-  final plane = width * height;
-  for (var y = 0; y < height; y++) {
-    for (var x = 0; x < width; x++) {
-      final src = (y * width + x) * 3;
-      final dst = y * width + x;
-      floats[dst] = rgb[src] / 255.0;
-      floats[plane + dst] = rgb[src + 1] / 255.0;
-      floats[2 * plane + dst] = rgb[src + 2] / 255.0;
-    }
-  }
-  return floats;
+RunModel _runner(Interpreter interpreter) {
+  return (Float32List input) {
+    interpreter.getInputTensor(0).data = input.buffer.asUint8List(
+      input.offsetInBytes,
+      input.lengthInBytes,
+    );
+    interpreter.invoke();
+    final output = interpreter.getOutputTensor(0);
+    return (
+      values: Uint8List.fromList(output.data).buffer.asFloat32List(),
+      shape: output.shape,
+    );
+  };
 }

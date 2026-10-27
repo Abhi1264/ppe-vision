@@ -62,6 +62,74 @@ void main() {
     expect(detections.single.classType, DetectionClass.person);
   });
 
+  test('reads boxes divided by the input size, as newer exports emit them', () {
+    final values = Float32List.fromList([0.5, 0.5, 0.25, 0.5, 0.9]);
+
+    final detections = decodeYoloOutput(
+      values: values,
+      shape: const [1, 1, 5],
+      modelWidth: 640,
+      modelHeight: 640,
+      padX: 0,
+      padY: 0,
+      letterboxScale: 1,
+      uprightWidth: 640,
+      uprightHeight: 640,
+      labels: const ['person'],
+    );
+
+    expect(detections.single.x1, closeTo(0.375, 1e-6));
+    expect(detections.single.y2, closeTo(0.75, 1e-6));
+  });
+
+  test('letterboxes with a bilinear resize and integer gray pads', () {
+    final frame = FrameData(
+      width: 2,
+      height: 1,
+      timestamp: DateTime.utc(2026),
+      format: FrameFormat.rgba8888,
+      planes: [
+        FramePlane(
+          bytes: Uint8List.fromList([0, 0, 0, 255, 255, 255, 255, 255]),
+          bytesPerRow: 8,
+          bytesPerPixel: 4,
+        ),
+      ],
+    );
+
+    final image = const DefaultImagePreprocessor(
+      targetWidth: 4,
+      targetHeight: 4,
+    ).processSync(frame);
+
+    expect(image.padX, 0);
+    expect(image.padY, 1);
+    expect(image.rgbBytes.sublist(0, 3), [114, 114, 114]);
+    final row = [for (var x = 0; x < 4; x++) image.rgbBytes[(4 + x) * 3]];
+    expect(row, [0, 64, 191, 255]);
+  });
+
+  test('reads camera YUV as full range', () {
+    final frame = FrameData(
+      width: 2,
+      height: 2,
+      timestamp: DateTime.utc(2026),
+      format: FrameFormat.yuv420,
+      planes: [
+        FramePlane(bytes: Uint8List.fromList([16, 16, 16, 16]), bytesPerRow: 2),
+        FramePlane(bytes: Uint8List.fromList([128]), bytesPerRow: 1),
+        FramePlane(bytes: Uint8List.fromList([128]), bytesPerRow: 1),
+      ],
+    );
+
+    final image = const DefaultImagePreprocessor(
+      targetWidth: 2,
+      targetHeight: 2,
+    ).processSync(frame);
+
+    expect(image.rgbBytes.sublist(0, 3), [16, 16, 16]);
+  });
+
   test('rotates a BGRA frame 90 degrees clockwise into RGB', () async {
     // Sensor (0,0) red maps to upright (1,0) after a 90° clockwise turn.
     final frame = FrameData(
